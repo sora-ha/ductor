@@ -248,6 +248,64 @@ class TestAuthMiddleware:
 class TestSequentialMiddleware:
     """Test dedup + per-chat sequential lock."""
 
+    async def test_unaddressed_group_message_dropped_before_queue(self) -> None:
+        """In mention_only mode, an unaddressed group message must be dropped
+        before the queue indicator is sent — otherwise users see a misleading
+        '[Message in queue...]' for a bot that will never reply.
+        """
+        from ductor_bot.messenger.telegram.middleware import SequentialMiddleware
+
+        mw = SequentialMiddleware(group_mention_only=True)
+        mw.set_bot_username("mybot")
+        mw.set_bot_id(1)
+        bot = AsyncMock()
+        bot.send_message = AsyncMock(return_value=MagicMock(message_id=999))
+        mw.set_bot(bot)
+
+        # Pre-occupy the lock so an indicator would otherwise be emitted.
+        chat_id = 100
+        held = mw.get_lock((chat_id, None))
+        await held.acquire()
+        try:
+            handler = AsyncMock()
+            msg = _make_message(chat_id=chat_id, text="hi", chat_type="supergroup")
+            msg.entities = []
+            msg.caption = None
+            msg.caption_entities = []
+            msg.reply_to_message = None
+
+            result = await mw(handler, msg, {})
+
+            handler.assert_not_called()
+            bot.send_message.assert_not_called()
+            assert not mw.has_pending(chat_id)
+            assert result is None
+        finally:
+            held.release()
+
+    async def test_addressed_group_message_passes(self) -> None:
+        """A group message with the bot's @mention reaches the handler."""
+        from ductor_bot.messenger.telegram.middleware import SequentialMiddleware
+
+        mw = SequentialMiddleware(group_mention_only=True)
+        mw.set_bot_username("mybot")
+        mw.set_bot_id(1)
+
+        handler = AsyncMock(return_value="ok")
+        msg = _make_message(chat_id=100, text="@mybot hi", chat_type="supergroup")
+        mention = MagicMock()
+        mention.type = "mention"
+        mention.offset = 0
+        mention.length = len("@mybot")
+        msg.entities = [mention]
+        msg.caption = None
+        msg.caption_entities = []
+        msg.reply_to_message = None
+
+        result = await mw(handler, msg, {})
+        handler.assert_called_once()
+        assert result == "ok"
+
     async def test_sequential_processing(self) -> None:
         from ductor_bot.messenger.telegram.middleware import SequentialMiddleware
 

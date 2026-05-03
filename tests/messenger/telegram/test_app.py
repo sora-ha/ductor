@@ -551,10 +551,10 @@ class TestResolveText:
         result = await tg_bot._resolve_text(msg)
         assert result == "[MEDIA PROMPT]"
 
-    @patch("ductor_bot.messenger.telegram.app.is_media_addressed", return_value=False)
+    @patch("ductor_bot.messenger.telegram.app.should_drop_in_group", return_value=True)
     @patch("ductor_bot.messenger.telegram.app.has_media", return_value=True)
     async def test_media_in_group_not_addressed_mention_only(
-        self, _mock_has: MagicMock, _mock_addr: MagicMock
+        self, _mock_has: MagicMock, _mock_drop: MagicMock
     ) -> None:
         cfg = _make_config(group_mention_only=True)
         tg_bot, _ = _make_tg_bot(cfg)
@@ -578,10 +578,10 @@ class TestResolveText:
         assert result == "[MEDIA]"
 
     @patch("ductor_bot.messenger.telegram.app.resolve_media_text", new_callable=AsyncMock)
-    @patch("ductor_bot.messenger.telegram.app.is_media_addressed", return_value=True)
+    @patch("ductor_bot.messenger.telegram.app.should_drop_in_group", return_value=False)
     @patch("ductor_bot.messenger.telegram.app.has_media", return_value=True)
     async def test_media_in_group_addressed(
-        self, _mock_has: MagicMock, _mock_addr: MagicMock, mock_resolve: AsyncMock
+        self, _mock_has: MagicMock, _mock_drop: MagicMock, mock_resolve: AsyncMock
     ) -> None:
         tg_bot, _ = _make_tg_bot()
         tg_bot._orchestrator = _make_orchestrator()

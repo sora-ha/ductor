@@ -51,9 +51,9 @@ from ductor_bot.messenger.telegram.handlers import (
 from ductor_bot.messenger.telegram.media import (
     has_media,
     is_command_for_others,
-    is_media_addressed,
     is_message_addressed,
     resolve_media_text,
+    should_drop_in_group,
 )
 from ductor_bot.messenger.telegram.message_dispatch import (
     NonStreamingDispatch,
@@ -216,7 +216,9 @@ class TelegramBot:
 
         self._bus.register_transport(TelegramTransport(self))
         self._sequential = SequentialMiddleware(
-            lock_pool=self._lock_pool, topic_names=self._topic_names
+            lock_pool=self._lock_pool,
+            topic_names=self._topic_names,
+            group_mention_only=config.group_mention_only,
         )
         self._sequential.set_bot(self._bot)
         self._sequential.set_interrupt_handler(self._on_interrupt)
@@ -378,6 +380,7 @@ class TelegramBot:
 
         await run_startup(self)
         self._sequential.set_bot_username(self._bot_username)
+        self._sequential.set_bot_id(self._bot_id)
 
     def _register_handlers(self) -> None:
         r = self._router
@@ -1389,28 +1392,21 @@ class TelegramBot:
 
     async def _resolve_text(self, message: Message) -> str | None:
         """Extract processable text from *message* (plain text or media prompt)."""
-        is_group = message.chat.type in ("group", "supergroup")
+        if should_drop_in_group(
+            message,
+            bot_id=self._bot_id,
+            bot_username=self._bot_username,
+            group_mention_only=self._config.group_mention_only,
+        ):
+            return None
 
         if has_media(message):
-            if is_group and (
-                self._is_for_others(message)
-                or (
-                    self._config.group_mention_only
-                    and not is_media_addressed(message, self._bot_id, self._bot_username)
-                )
-            ):
-                return None
             paths = self._orch.paths
             return await resolve_media_text(
                 self._bot, message, paths.telegram_files_dir, paths.workspace
             )
         if not message.text:
             return None
-        if is_group:
-            if self._is_for_others(message):
-                return None
-            if self._config.group_mention_only and not self._is_addressed(message):
-                return None
         return strip_mention(message.text, self._bot_username)
 
     async def _handle_streaming(

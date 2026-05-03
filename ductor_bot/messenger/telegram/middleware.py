@@ -28,6 +28,7 @@ from ductor_bot.messenger.telegram.abort import (
     is_interrupt_message,
 )
 from ductor_bot.messenger.telegram.dedup import DedupeCache, build_dedup_key
+from ductor_bot.messenger.telegram.media import should_drop_in_group
 from ductor_bot.messenger.telegram.topic import (
     TopicNameCache,
     get_session_key,
@@ -166,6 +167,8 @@ class SequentialMiddleware(BaseMiddleware):
         self,
         lock_pool: LockPool | None = None,
         topic_names: TopicNameCache | None = None,
+        *,
+        group_mention_only: bool = False,
     ) -> None:
         self._lock_pool = lock_pool if lock_pool is not None else LockPool()
         self._topic_names = topic_names
@@ -177,7 +180,9 @@ class SequentialMiddleware(BaseMiddleware):
         self._pending: dict[int, list[_QueueEntry]] = {}
         self._entry_counter = 0
         self._bot: Bot | None = None
+        self._bot_id: int | None = None
         self._bot_username: str | None = None
+        self._group_mention_only = group_mention_only
 
     @property
     def lock_pool(self) -> LockPool:
@@ -191,6 +196,10 @@ class SequentialMiddleware(BaseMiddleware):
     def set_bot_username(self, bot_username: str | None) -> None:
         """Set the bot username for command mention filtering."""
         self._bot_username = bot_username
+
+    def set_bot_id(self, bot_id: int | None) -> None:
+        """Set the bot user id for reply-to-self detection in group filtering."""
+        self._bot_id = bot_id
 
     def set_interrupt_handler(self, handler: AbortHandler) -> None:
         """Register a callback invoked for interrupt triggers *before* the lock."""
@@ -290,6 +299,26 @@ class SequentialMiddleware(BaseMiddleware):
 
         return False
 
+    def _is_unaddressed_group(self, event: Message) -> bool:
+        """True if this group message is not addressed to us and must be dropped.
+
+        Centralised so the queue indicator (``_send_indicator``) is never
+        rendered for messages the bot would silently discard later.
+        """
+        drop = should_drop_in_group(
+            event,
+            bot_id=self._bot_id,
+            bot_username=self._bot_username,
+            group_mention_only=self._group_mention_only,
+        )
+        if drop:
+            logger.debug(
+                "Unaddressed group message dropped chat=%d msg_id=%d",
+                event.chat.id,
+                event.message_id,
+            )
+        return drop
+
     async def __call__(
         self,
         handler: Callable[[TelegramObject, dict[str, Any]], Awaitable[Any]],
@@ -298,6 +327,8 @@ class SequentialMiddleware(BaseMiddleware):
     ) -> Any:
         if not isinstance(event, Message) or not event.chat:
             return await handler(event, data)
+        if self._is_unaddressed_group(event):
+            return None
 
         topic_label: str | None = None
         if event.is_topic_message and event.message_thread_id and self._topic_names:
@@ -327,6 +358,19 @@ class SequentialMiddleware(BaseMiddleware):
             return None
 
         session_key = get_session_key(event)
+        return await self._run_under_lock(handler, event, data, chat_id, session_key)
+
+    # -- Internal helpers ------------------------------------------------------
+
+    async def _run_under_lock(
+        self,
+        handler: Callable[[TelegramObject, dict[str, Any]], Awaitable[Any]],
+        event: Message,
+        data: dict[str, Any],
+        chat_id: int,
+        session_key: Any,
+    ) -> Any:
+        """Acquire the per-session lock; queue with indicator if it was busy."""
         lock = self.get_lock(session_key.lock_key)
         entry: _QueueEntry | None = None
 
@@ -343,8 +387,6 @@ class SequentialMiddleware(BaseMiddleware):
                     return None
                 await self._delete_indicator(chat_id, entry)
             return await handler(event, data)
-
-    # -- Internal helpers ------------------------------------------------------
 
     def _create_entry(self, chat_id: int, event: Message) -> _QueueEntry:
         self._entry_counter += 1

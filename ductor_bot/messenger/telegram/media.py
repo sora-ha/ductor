@@ -109,6 +109,27 @@ def is_media_addressed(
     return is_message_addressed(message, bot_id, bot_username)
 
 
+def should_drop_in_group(
+    message: Message,
+    *,
+    bot_id: int | None,
+    bot_username: str | None,
+    group_mention_only: bool,
+) -> bool:
+    """True if a group/supergroup message should be silently dropped.
+
+    Drops ``/cmd@other_bot`` commands always, and — when *group_mention_only*
+    is True — any message not addressed to this bot via reply / @mention /
+    ``/cmd@us``. Returns False for non-group chats; the caller can rely on
+    this to skip the check in private DMs.
+    """
+    if message.chat.type not in ("group", "supergroup"):
+        return False
+    if is_command_for_others(message, bot_username):
+        return True
+    return group_mention_only and not is_message_addressed(message, bot_id, bot_username)
+
+
 async def resolve_media_text(
     bot: Bot,
     message: Message,
