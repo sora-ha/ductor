@@ -205,8 +205,17 @@ def sync_rule_files(root: Path) -> None:
     if not root.is_dir():
         return
     _sync_group(root)
-    for dirpath in root.rglob("*"):
-        if not dirpath.is_dir():
+    try:
+        entries = list(root.rglob("*"))
+    except PermissionError:
+        logger.debug("Permission denied walking %s, skipping rule-file sync subtree", root)
+        return
+    for dirpath in entries:
+        try:
+            is_dir = dirpath.is_dir()
+        except PermissionError:
+            continue
+        if not is_dir:
             continue
         if any(part in _SKIP_DIRS for part in dirpath.parts):
             continue
@@ -216,18 +225,29 @@ def sync_rule_files(root: Path) -> None:
 def _sync_group(directory: Path) -> None:
     """Sync all rule files (CLAUDE.md, AGENTS.md, GEMINI.md) in a single directory."""
     files = {name: directory / name for name in _RULE_FILE_NAMES}
-    existing = {name: path for name, path in files.items() if path.exists()}
+    try:
+        existing = {name: path for name, path in files.items() if path.exists()}
+    except PermissionError:
+        logger.debug("Permission denied checking rule files in %s, skipping", directory)
+        return
     if not existing:
         return
 
-    newest_name, newest_path = max(existing.items(), key=lambda item: item[1].stat().st_mtime)
-    newest_mtime = newest_path.stat().st_mtime
+    try:
+        newest_name, newest_path = max(existing.items(), key=lambda item: item[1].stat().st_mtime)
+        newest_mtime = newest_path.stat().st_mtime
+    except PermissionError:
+        logger.debug("Permission denied reading stat in %s, skipping", directory)
+        return
 
     for name, path in files.items():
         if name == newest_name:
             continue
-        if path.exists() and path.stat().st_mtime < newest_mtime:
-            shutil.copy2(newest_path, path)
+        try:
+            if path.exists() and path.stat().st_mtime < newest_mtime:
+                shutil.copy2(newest_path, path)
+        except PermissionError:
+            logger.debug("Permission denied syncing %s in %s, skipping", name, directory)
 
 
 # ---------------------------------------------------------------------------
