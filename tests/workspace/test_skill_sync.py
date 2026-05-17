@@ -14,9 +14,11 @@ from ductor_bot.workspace.paths import DuctorPaths
 from ductor_bot.workspace.skill_sync import (
     _MANAGED_MARKER,
     _clean_broken_links,
+    _clean_invalid_workspace_skill_links,
     _discover_skills,
     _ensure_copy,
     _ensure_link,
+    _has_valid_skill_frontmatter,
     _is_managed_copy,
     _is_under,
     _resolve_canonical,
@@ -38,8 +40,12 @@ def _make_paths(tmp_path: Path) -> DuctorPaths:
 def _make_skill(base: Path, name: str) -> Path:
     d = base / name
     d.mkdir(parents=True, exist_ok=True)
-    (d / "SKILL.md").write_text(f"# {name}")
+    (d / "SKILL.md").write_text(_skill_text(name))
     return d
+
+
+def _skill_text(name: str, body: str | None = None) -> str:
+    return f"---\nname: {name}\ndescription: Test skill {name}.\n---\n\n{body or f'# {name}'}"
 
 
 # ---------------------------------------------------------------------------
@@ -60,6 +66,23 @@ def test_discover_real_dirs(tmp_path: Path) -> None:
     result = _discover_skills(base)
     assert set(result.keys()) == {"my-skill", "other-skill"}
     assert all(not v.is_symlink() for v in result.values())
+
+
+def test_discover_skips_missing_frontmatter(tmp_path: Path) -> None:
+    base = tmp_path / "skills"
+    invalid = base / "invalid-skill"
+    invalid.mkdir(parents=True)
+    (invalid / "SKILL.md").write_text("# invalid")
+    _make_skill(base, "valid-skill")
+    result = _discover_skills(base)
+    assert set(result.keys()) == {"valid-skill"}
+
+
+def test_valid_skill_frontmatter_requires_name_and_description(tmp_path: Path) -> None:
+    skill = _make_skill(tmp_path, "valid")
+    assert _has_valid_skill_frontmatter(skill) is True
+    (skill / "SKILL.md").write_text("---\nname: valid\n---\n\n# Missing description")
+    assert _has_valid_skill_frontmatter(skill) is False
 
 
 def test_discover_skips_internal_dirs(tmp_path: Path) -> None:
@@ -341,7 +364,7 @@ def test_sync_external_symlink(tmp_path: Path) -> None:
     codex_skills.mkdir(parents=True, exist_ok=True)
     external_real = tmp_path / "agents" / "skills" / "ext-skill"
     external_real.mkdir(parents=True)
-    (external_real / "SKILL.md").write_text("# external")
+    (external_real / "SKILL.md").write_text(_skill_text("ext-skill", "# external"))
     (claude_skills.parent).mkdir(parents=True, exist_ok=True)
     claude_skills.mkdir(exist_ok=True)
     (claude_skills / "ext-skill").symlink_to(external_real)
@@ -379,6 +402,34 @@ def test_sync_cleans_broken_after_delete(tmp_path: Path) -> None:
         mock.return_value = {"claude": claude_skills}
         sync_skills(paths)
     assert not (claude_skills / "temp-skill").exists()
+
+
+def test_sync_removes_invalid_workspace_symlink_and_downstream_link(tmp_path: Path) -> None:
+    paths, _, codex_skills = _setup_three_dirs(tmp_path)
+    codex_skills.mkdir(parents=True, exist_ok=True)
+    external = tmp_path / "external" / "sisyphus-orchestrator"
+    external.mkdir(parents=True)
+    (external / "SKILL.md").write_text("# missing frontmatter")
+    workspace_link = paths.skills_dir / "sisyphus-orchestrator"
+    workspace_link.symlink_to(external)
+    (codex_skills / "sisyphus-orchestrator").symlink_to(workspace_link)
+
+    with patch("ductor_bot.workspace.skill_sync._cli_skill_dirs") as mock:
+        mock.return_value = {"codex": codex_skills}
+        sync_skills(paths)
+
+    assert not workspace_link.exists()
+    assert not (codex_skills / "sisyphus-orchestrator").exists()
+
+
+def test_clean_invalid_workspace_skills_preserves_real_user_dir(tmp_path: Path) -> None:
+    base = tmp_path / "skills"
+    user_skill = base / "user-skill"
+    user_skill.mkdir(parents=True)
+    (user_skill / "SKILL.md").write_text("# user-managed invalid skill")
+
+    assert _clean_invalid_workspace_skill_links(base) == 0
+    assert user_skill.is_dir()
 
 
 # ---------------------------------------------------------------------------
@@ -433,7 +484,7 @@ def test_deeply_nested_skill(tmp_path: Path) -> None:
     paths, claude_skills, _ = _setup_three_dirs(tmp_path)
     sk = claude_skills / "complex-skill"
     sk.mkdir(parents=True)
-    (sk / "SKILL.md").write_text("# complex")
+    (sk / "SKILL.md").write_text(_skill_text("complex-skill", "# complex"))
     (sk / "scripts").mkdir()
     (sk / "scripts" / "run.py").write_text("print('hello')")
     (sk / "results").mkdir()
@@ -501,7 +552,7 @@ def test_sync_preserves_external_symlink(tmp_path: Path) -> None:
     # User's external skill (outside all sync dirs)
     external = tmp_path / "my_custom" / "my-skill"
     external.mkdir(parents=True)
-    (external / "SKILL.md").write_text("# user version")
+    (external / "SKILL.md").write_text(_skill_text("my-skill", "# user version"))
 
     # User symlink in .claude pointing to external location
     (claude_skills / "my-skill").symlink_to(external)
@@ -747,7 +798,7 @@ def test_ensure_copy_creates_new(tmp_path: Path) -> None:
     assert _ensure_copy(dest, source) is True
     assert dest.is_dir()
     assert not dest.is_symlink()
-    assert (dest / "SKILL.md").read_text() == "# my-skill"
+    assert (dest / "SKILL.md").read_text() == _skill_text("my-skill")
     assert (dest / _MANAGED_MARKER).is_file()
 
 
@@ -812,7 +863,7 @@ def test_sync_docker_copies_instead_of_links(tmp_path: Path) -> None:
     assert dest.is_dir()
     assert not dest.is_symlink()
     assert _is_managed_copy(dest)
-    assert (dest / "SKILL.md").read_text() == "# my-skill"
+    assert (dest / "SKILL.md").read_text() == _skill_text("my-skill")
 
 
 def test_sync_docker_preserves_user_dirs(tmp_path: Path) -> None:
@@ -849,7 +900,7 @@ def test_bundled_docker_copies(tmp_path: Path) -> None:
     assert target.is_dir()
     assert not target.is_symlink()
     assert _is_managed_copy(target)
-    assert (target / "SKILL.md").read_text() == "# bundled-sk"
+    assert (target / "SKILL.md").read_text() == _skill_text("bundled-sk")
 
 
 def test_bundled_docker_preserves_user_dir(tmp_path: Path) -> None:

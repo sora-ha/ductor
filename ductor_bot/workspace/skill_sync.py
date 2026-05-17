@@ -23,6 +23,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import yaml
+
 from ductor_bot.workspace.paths import DuctorPaths
 
 logger = logging.getLogger(__name__)
@@ -65,12 +67,44 @@ def _discover_skills(base: Path) -> dict[str, Path]:
         if entry.name.startswith(".") or entry.name in _SKIP_DIRS:
             continue
         if entry.is_symlink():
-            if entry.exists():
+            if entry.exists() and _has_valid_skill_frontmatter(entry):
                 skills[entry.name] = entry
             continue
-        if entry.is_dir():
+        if entry.is_dir() and _has_valid_skill_frontmatter(entry):
             skills[entry.name] = entry
     return skills
+
+
+def _has_valid_skill_frontmatter(skill_dir: Path) -> bool:
+    """Return True when ``SKILL.md`` has Codex/Claude-compatible frontmatter."""
+    skill_md = skill_dir / "SKILL.md"
+    try:
+        lines = skill_md.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return False
+    if not lines or lines[0].strip() != "---":
+        return False
+    end_index = -1
+    for index, line in enumerate(lines[1:], start=1):
+        if line.strip() == "---":
+            end_index = index
+            break
+    if end_index <= 1:
+        return False
+    try:
+        metadata = yaml.safe_load("\n".join(lines[1:end_index]))
+    except yaml.YAMLError:
+        return False
+    if not isinstance(metadata, dict):
+        return False
+    name = metadata.get("name")
+    description = metadata.get("description")
+    return (
+        isinstance(name, str)
+        and bool(name.strip())
+        and isinstance(description, str)
+        and bool(description.strip())
+    )
 
 
 def _cli_skill_dirs() -> dict[str, Path]:
@@ -306,6 +340,13 @@ def sync_skills(paths: DuctorPaths, *, docker_active: bool = False) -> None:
     cli_dirs = _cli_skill_dirs()
     all_dirs: dict[str, Path] = {"ductor": paths.skills_dir, **cli_dirs}
 
+    removed_invalid = _clean_invalid_workspace_skill_links(paths.skills_dir)
+    if removed_invalid:
+        logger.info(
+            "Removed %d invalid workspace skill link(s) without SKILL.md frontmatter",
+            removed_invalid,
+        )
+
     registries = {name: _discover_skills(d) for name, d in all_dirs.items()}
 
     all_names: set[str] = set()
@@ -328,6 +369,29 @@ def sync_skills(paths: DuctorPaths, *, docker_active: bool = False) -> None:
             logger.info("Cleaned %d broken skill link(s) in %s", removed, base_dir)
 
 
+def _clean_invalid_workspace_skill_links(base_dir: Path) -> int:
+    """Remove Ductor workspace links/copies that point at invalid skill folders.
+
+    User-owned real directories are preserved. Removing invalid workspace
+    symlinks prevents Codex from loading legacy synced skills whose ``SKILL.md``
+    is missing required YAML frontmatter.
+    """
+    if not base_dir.is_dir():
+        return 0
+    removed = 0
+    for entry in sorted(base_dir.iterdir()):
+        if entry.name.startswith(".") or entry.name in _SKIP_DIRS:
+            continue
+        if entry.is_symlink() and entry.exists() and not _has_valid_skill_frontmatter(entry):
+            entry.unlink()
+            removed += 1
+            continue
+        if _is_managed_copy(entry) and not _has_valid_skill_frontmatter(entry):
+            shutil.rmtree(entry, ignore_errors=True)
+            removed += 1
+    return removed
+
+
 def _iter_bundled_entries(paths: DuctorPaths) -> list[tuple[Path, Path]]:
     """Return ``(source, target)`` pairs for each bundled skill."""
     bundled = paths.bundled_skills_dir
@@ -338,6 +402,9 @@ def _iter_bundled_entries(paths: DuctorPaths) -> list[tuple[Path, Path]]:
     pairs: list[tuple[Path, Path]] = []
     for entry in sorted(bundled.iterdir()):
         if not entry.is_dir() or entry.name.startswith(".") or entry.name in _SKIP_DIRS:
+            continue
+        if not _has_valid_skill_frontmatter(entry):
+            logger.warning("Skipping bundled skill without valid frontmatter: %s", entry)
             continue
         pairs.append((entry, target_dir / entry.name))
     return pairs
