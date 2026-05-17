@@ -51,6 +51,25 @@ async def test_error_preserves_session_id(orch: Orchestrator) -> None:
     assert session.message_count == 1
 
 
+async def test_error_on_new_session_persists_response_session_id(orch: Orchestrator) -> None:
+    object.__setattr__(
+        orch._cli_service,
+        "execute",
+        AsyncMock(
+            return_value=_mock_response(is_error=True, result="Token limit", session_id="sess-new")
+        ),
+    )
+    object.__setattr__(orch._process_registry, "kill_all", AsyncMock(return_value=0))
+
+    result = await normal(orch, SessionKey(chat_id=1), "Fail before first success")
+
+    assert "Session Error" in result.text
+    session = await orch._sessions.get_active(SessionKey(chat_id=1))
+    assert session is not None
+    assert session.session_id == "sess-new"
+    assert session.message_count == 0
+
+
 async def test_error_message_contains_new_hint(orch: Orchestrator) -> None:
     object.__setattr__(
         orch._cli_service,
@@ -162,6 +181,23 @@ async def test_streaming_error_preserves_session(orch: Orchestrator) -> None:
     session = await orch._sessions.get_active(SessionKey(chat_id=1))
     assert session is not None
     assert session.session_id == "sess-keep"
+
+
+async def test_abort_on_new_session_persists_response_session_id(orch: Orchestrator) -> None:
+    object.__setattr__(
+        orch._cli_service,
+        "execute",
+        AsyncMock(return_value=_mock_response(result="", session_id="sess-aborted")),
+    )
+    orch._process_registry._aborted.add(1)
+
+    result = await normal(orch, SessionKey(chat_id=1), "Stop during first run")
+
+    assert result.text == ""
+    session = await orch._sessions.get_active(SessionKey(chat_id=1))
+    assert session is not None
+    assert session.session_id == "sess-aborted"
+    assert session.message_count == 0
 
 
 async def test_streaming_no_auto_retry_on_resume_failure(orch: Orchestrator) -> None:

@@ -8,6 +8,7 @@ shim as the external command.
 from __future__ import annotations
 
 import importlib.util
+import shlex
 import sys
 import textwrap
 from pathlib import Path
@@ -54,6 +55,11 @@ def _write_script(tmp_path: Path, name: str, body: str) -> Path:
     return script
 
 
+def _python_command(script: Path) -> str:
+    """Return a shell-style command safe for paths containing spaces."""
+    return f"{shlex.quote(sys.executable)} {shlex.quote(str(script))}"
+
+
 def test_external_transcribe_unset_is_skip(
     audio_module: Any, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
@@ -78,7 +84,7 @@ def test_external_transcribe_returns_transcript_json(
         print(json.dumps({"transcript": "hello world", "language": "en"}))
         """,
     )
-    monkeypatch.setenv("DUCTOR_TRANSCRIBE_COMMAND", f"{sys.executable} {script}")
+    monkeypatch.setenv("DUCTOR_TRANSCRIBE_COMMAND", _python_command(script))
     audio = tmp_path / "a.ogg"
     audio.write_bytes(b"fake")
 
@@ -100,7 +106,7 @@ def test_external_transcribe_plaintext_stdout(
         print("just the transcript, no json")
         """,
     )
-    monkeypatch.setenv("DUCTOR_TRANSCRIBE_COMMAND", f"{sys.executable} {script}")
+    monkeypatch.setenv("DUCTOR_TRANSCRIBE_COMMAND", _python_command(script))
     audio = tmp_path / "a.ogg"
     audio.write_bytes(b"fake")
 
@@ -122,7 +128,7 @@ def test_external_transcribe_nonzero_falls_through(
         sys.exit(2)
         """,
     )
-    monkeypatch.setenv("DUCTOR_TRANSCRIBE_COMMAND", f"{sys.executable} {script}")
+    monkeypatch.setenv("DUCTOR_TRANSCRIBE_COMMAND", _python_command(script))
     audio = tmp_path / "a.ogg"
     audio.write_bytes(b"fake")
 
@@ -156,7 +162,7 @@ def test_video_external_transcribe_returns_text(
         print("video transcript result")
         """,
     )
-    monkeypatch.setenv("DUCTOR_VIDEO_TRANSCRIBE_COMMAND", f"{sys.executable} {script}")
+    monkeypatch.setenv("DUCTOR_VIDEO_TRANSCRIBE_COMMAND", _python_command(script))
     audio = tmp_path / "x.ogg"
     audio.write_bytes(b"fake")
 
@@ -186,7 +192,7 @@ def test_video_external_transcribe_nonzero_returns_none(
         sys.exit(2)
         """,
     )
-    monkeypatch.setenv("DUCTOR_VIDEO_TRANSCRIBE_COMMAND", f"{sys.executable} {script}")
+    monkeypatch.setenv("DUCTOR_VIDEO_TRANSCRIBE_COMMAND", _python_command(script))
     audio = tmp_path / "x.ogg"
     audio.write_bytes(b"fake")
 

@@ -451,6 +451,30 @@ class SessionManager:
             session.total_cost_usd = current.total_cost_usd
             session.total_tokens = current.total_tokens
 
+    async def preserve_session_identity(self, session: SessionData) -> None:
+        """Persist session IDs/provider metadata without counting a completed turn."""
+        async with self._lock:
+            sessions = await self._load()
+            key = session.session_key.storage_key
+            current = sessions.get(key)
+            if current is None:
+                current = session
+            else:
+                self._merge_provider_sessions(current, session)
+                current.provider = session.provider
+                current.model = session.model
+                if session.topic_name and not current.topic_name:
+                    current.topic_name = session.topic_name
+
+            current.last_active = datetime.now(UTC).isoformat()
+            sessions[key] = current
+            await self._save(sessions)
+
+            session.provider = current.provider
+            session.model = current.model
+            session.last_active = current.last_active
+            session.provider_sessions = self._clone_provider_sessions(current.provider_sessions)
+
     @staticmethod
     def _clone_provider_sessions(
         provider_sessions: dict[str, ProviderSessionData],
