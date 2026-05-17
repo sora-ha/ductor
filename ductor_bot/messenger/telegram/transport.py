@@ -151,7 +151,7 @@ class TelegramTransport:
 
     async def _deliver_interagent(self, env: Envelope) -> None:
         """Deliver inter-agent result (error notification or injected response)."""
-        roots = self._roots()
+        opts = self._opts(env)
 
         if env.is_error:
             session_info = f"\nSession: `{env.session_name}`" if env.session_name else ""
@@ -161,9 +161,7 @@ class TelegramTransport:
                 f"Error: {env.metadata.get('error', 'unknown')}\n"
                 f"Request: _{env.prompt_preview}_"
             )
-            await send_rich(
-                self._bot.bot_instance, env.chat_id, error_text, SendRichOpts(allowed_roots=roots)
-            )
+            await send_rich(self._bot.bot_instance, env.chat_id, error_text, opts)
             return
 
         # Provider switch notice (before result)
@@ -173,17 +171,12 @@ class TelegramTransport:
                 self._bot.bot_instance,
                 env.chat_id,
                 f"**Provider Switch Detected**\n\n{notice}",
-                SendRichOpts(allowed_roots=roots),
+                opts,
             )
 
         # Result text (filled by bus injection)
         if env.result_text:
-            await send_rich(
-                self._bot.bot_instance,
-                env.chat_id,
-                env.result_text,
-                SendRichOpts(allowed_roots=roots),
-            )
+            await send_rich(self._bot.bot_instance, env.chat_id, env.result_text, opts)
 
     async def _deliver_task_result(self, env: Envelope) -> None:
         """Deliver task result notification + injected response."""
@@ -225,12 +218,7 @@ class TelegramTransport:
     async def _deliver_webhook_wake(self, env: Envelope) -> None:
         """Deliver webhook wake result."""
         if env.result_text:
-            await send_rich(
-                self._bot.bot_instance,
-                env.chat_id,
-                env.result_text,
-                SendRichOpts(allowed_roots=self._roots()),
-            )
+            await send_rich(self._bot.bot_instance, env.chat_id, env.result_text, self._opts(env))
 
     async def _deliver_cron(self, env: Envelope) -> None:
         """Deliver cron result to a specific chat/topic (unicast).
