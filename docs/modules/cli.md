@@ -15,19 +15,21 @@ Provider-agnostic CLI execution layer for Claude Code, Codex, Gemini, and Antigr
 - `claude_provider.py`: Claude subprocess wrapper
 - `codex_provider.py`: Codex subprocess wrapper
 - `gemini_provider.py`: Gemini subprocess wrapper
-- `antigravity_provider.py`: Antigravity (`agy`) subprocess wrapper — always runs on the host, even with the Docker sandbox enabled (the sandbox image ships no `agy` binary or auth state)
+- `antigravity_provider.py`: Antigravity (`agy`) subprocess wrapper — always runs on the host, even with the Docker sandbox enabled (the sandbox image ships no `agy` binary or auth state). `agy` has no headless streaming mode (`--print` is one-shot; `--prompt-interactive` needs a TTY), so `send_streaming` reuses the `--print` path and re-emits the answer as a single text delta plus result event
 - `stream_events.py`: normalized stream events + Claude stream parser
 - `codex_events.py`: Codex JSONL parser
 - `gemini_events.py`: Gemini NDJSON + JSON parser
-- `antigravity_events.py`: Antigravity stream/JSON parser
+- `antigravity_events.py`: Antigravity `--print` output parser (`parse_antigravity_json`)
 - `coalescer.py`: streaming text coalescing buffer used by bot streaming dispatch
 - `gemini_utils.py`: Gemini CLI discovery, trusted folder, model discovery helpers
 - `codex_discovery.py`: Codex model discovery via `codex app-server` JSON-RPC
+- `antigravity_discovery.py`: Antigravity model discovery via `agy models` (parses display names)
 - `process_registry.py`: subprocess tracking/abort/kill
 - `auth.py`: provider auth detection
 - `param_resolver.py`: task override resolution for cron/webhook one-shot runs
 - `codex_cache.py`, `codex_cache_observer.py`: Codex model cache + observer
 - `gemini_cache.py`, `gemini_cache_observer.py`: Gemini model cache + observer
+- `antigravity_cache.py`, `antigravity_cache_observer.py`: Antigravity model cache + observer (refreshes `~/.ductor/antigravity_models.json` from `agy models`, hourly)
 
 ## Execution path
 

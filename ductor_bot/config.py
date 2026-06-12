@@ -580,6 +580,7 @@ ANTIGRAVITY_MODELS_ORDERED: tuple[str, ...] = ("antigravity-default",)
 ANTIGRAVITY_MODELS: frozenset[str] = frozenset(ANTIGRAVITY_MODELS_ORDERED)
 
 _runtime_gemini: list[frozenset[str]] = [frozenset()]
+_runtime_antigravity: list[frozenset[str]] = [frozenset()]
 
 
 class ModelRegistry:
@@ -606,7 +607,11 @@ class ModelRegistry:
             or model_id.startswith(("gemini-", "auto-gemini-"))
         ):
             return "gemini"
-        if model_id in ANTIGRAVITY_MODELS or model_id.startswith("antigravity-"):
+        if (
+            model_id in ANTIGRAVITY_MODELS
+            or model_id in _runtime_antigravity[0]
+            or model_id.startswith("antigravity-")
+        ):
             return "antigravity"
         return "codex"
 
@@ -629,3 +634,23 @@ def set_gemini_models(models: frozenset[str]) -> None:
 def reset_gemini_models() -> None:
     """Clear runtime Gemini models. For test teardown only."""
     _runtime_gemini[0] = frozenset()
+
+
+def get_antigravity_models() -> frozenset[str]:
+    """Return dynamically discovered Antigravity models (may be empty)."""
+    return _runtime_antigravity[0]
+
+
+def set_antigravity_models(models: frozenset[str]) -> None:
+    """Set runtime Antigravity models discovered from ``agy models``.
+
+    Refuses to overwrite with an empty set to prevent cache wipe.
+    """
+    if not models:
+        return
+    _runtime_antigravity[0] = models
+
+
+def reset_antigravity_models() -> None:
+    """Clear runtime Antigravity models. For test teardown only."""
+    _runtime_antigravity[0] = frozenset()

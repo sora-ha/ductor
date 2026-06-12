@@ -11,7 +11,9 @@ from ductor_bot.config import (
     ANTIGRAVITY_MODELS,
     CLAUDE_MODELS,
     ModelRegistry,
+    get_antigravity_models,
     get_gemini_models,
+    set_antigravity_models,
     set_gemini_models,
 )
 
@@ -122,6 +124,11 @@ class ProviderManager:
         self.refresh_known_model_ids()
         self._gemini_api_key_mode = None  # Invalidate to re-check on next access
 
+    def on_antigravity_models_refresh(self, models: tuple[str, ...]) -> None:
+        """Callback for AntigravityCacheObserver: update model registry."""
+        set_antigravity_models(frozenset(models))
+        self.refresh_known_model_ids()
+
     def refresh_gemini_api_key_mode(self) -> bool:
         """Re-read ``~/.gemini/settings.json`` and update the cache.
 
@@ -136,7 +143,11 @@ class ProviderManager:
     def refresh_known_model_ids(self) -> None:
         """Refresh directive-known model IDs from dynamic provider registries."""
         self._known_model_ids = (
-            CLAUDE_MODELS | ANTIGRAVITY_MODELS | _GEMINI_ALIASES | get_gemini_models()
+            CLAUDE_MODELS
+            | ANTIGRAVITY_MODELS
+            | _GEMINI_ALIASES
+            | get_gemini_models()
+            | get_antigravity_models()
         )
 
     def resolve_runtime_target(self, requested_model: str | None = None) -> tuple[str, str]:
@@ -212,7 +223,8 @@ class ProviderManager:
                 cache = codex_cache_obs.get_cache() if codex_cache_obs else None
                 models = [m.id for m in cache.models] if cache and cache.models else []
             elif pid == "antigravity":
-                models = sorted(ANTIGRAVITY_MODELS)
+                antigravity = get_antigravity_models()
+                models = sorted(antigravity) if antigravity else sorted(ANTIGRAVITY_MODELS)
             else:
                 models = []
             providers.append({"id": pid, "name": name, "color": color, "models": models})

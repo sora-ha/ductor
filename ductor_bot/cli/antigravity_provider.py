@@ -5,22 +5,14 @@ from __future__ import annotations
 import asyncio
 import logging
 from collections.abc import AsyncGenerator
-from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from ductor_bot.cli.antigravity_events import (
-    parse_antigravity_json,
-    parse_antigravity_stream_line,
-)
-from ductor_bot.cli.base import (
-    BaseCLI,
-    CLIConfig,
-    _feed_stdin_and_close,
-)
+from ductor_bot.cli.antigravity_events import parse_antigravity_json
+from ductor_bot.cli.base import BaseCLI, CLIConfig
 from ductor_bot.cli.executor import build_subprocess_env
 from ductor_bot.cli.process_registry import ProcessRegistry, TrackedProcess
-from ductor_bot.cli.stream_events import ResultEvent, StreamEvent, SystemInitEvent
+from ductor_bot.cli.stream_events import AssistantTextDelta, ResultEvent, StreamEvent
 from ductor_bot.cli.types import CLIResponse
 from ductor_bot.config import ANTIGRAVITY_MODELS
 from ductor_bot.infra.platform import CREATION_FLAGS as _CREATION_FLAGS
@@ -34,34 +26,23 @@ logger = logging.getLogger(__name__)
 _DEFAULT_TIMEOUT = 300.0  # 5 minutes, matches agy --print-timeout default
 
 
-@dataclass(slots=True)
-class _AntigravityStreamState:
-    """Mutable stream-state for Antigravity event processing."""
-
-    last_session_id: str | None = None
-    saw_result: bool = False
-
-    def track(self, event: StreamEvent) -> None:
-        """Track session + final-result information from one stream event."""
-        if isinstance(event, (SystemInitEvent, ResultEvent)) and event.session_id:
-            self.last_session_id = event.session_id
-        if isinstance(event, ResultEvent):
-            self.saw_result = True
-            if not event.session_id:
-                event.session_id = self.last_session_id
-
-
 class AntigravityCLI(BaseCLI):
     """Async wrapper around the Antigravity CLI (agy).
 
+    agy has no headless streaming protocol: ``--print`` returns the whole
+    answer in one shot and ``--prompt-interactive`` is a bubbletea TUI that
+    requires a real ``/dev/tty``, which a subprocess does not have. Both
+    :meth:`send` and :meth:`send_streaming` therefore drive the same
+    ``--print`` command; streaming just re-emits the one-shot answer as a
+    single text delta plus a final result event.
+
     agy flags reference:
       --print / -p <prompt>   Non-interactive single-shot
-      --prompt-interactive    Interactive mode with initial prompt via stdin
       --continue / -c         Continue most recent conversation
       --conversation <id>     Resume a specific conversation
       --dangerously-skip-permissions  Auto-approve all tools
       --print-timeout <dur>   Timeout for --print mode (default 5m)
-      --sandbox               Sandbox mode
+      --model <id>            Select a model (see ``agy models``)
       --add-dir <dir>         Add workspace directory
       --log-file <path>       Override log file
     """
@@ -75,21 +56,11 @@ class AntigravityCLI(BaseCLI):
     def _build_command(
         self,
         *,
-        streaming: bool = False,
         resume_session: str | None = None,
         continue_session: bool = False,
     ) -> list[str]:
-        """Build the agy command list.
-
-        Non-streaming uses ``--print`` (prompt passed as argument).
-        Streaming uses ``--prompt-interactive`` (prompt piped via stdin).
-        """
-        cmd = [self._cli]
-
-        if not streaming:
-            cmd += ["--print"]
-        else:
-            cmd += ["--prompt-interactive"]
+        """Build the ``agy --print`` command list (prompt appended by caller)."""
+        cmd = [self._cli, "--print"]
 
         if self._config.model and self._config.model not in ANTIGRAVITY_MODELS:
             cmd += ["--model", self._config.model]
@@ -154,7 +125,7 @@ class AntigravityCLI(BaseCLI):
         timeout_seconds: float | None = None,
         timeout_controller: TimeoutController | None = None,
     ) -> CLIResponse:
-        """Send a non-streaming prompt via ``agy --print``."""
+        """Send a prompt via ``agy --print`` and return the full response."""
         effective_timeout = timeout_seconds or _DEFAULT_TIMEOUT
         cmd = self._build_command(
             resume_session=resume_session,
@@ -165,7 +136,7 @@ class AntigravityCLI(BaseCLI):
 
         cmd, cwd = self._host_command(cmd)
         safe_cmd = _safe_command_for_logging(cmd)
-        logger.debug("Antigravity send (non-streaming): %s", safe_cmd)
+        logger.debug("Antigravity send: %s", safe_cmd)
 
         proc = await asyncio.create_subprocess_exec(
             *cmd,
@@ -230,190 +201,34 @@ class AntigravityCLI(BaseCLI):
         timeout_seconds: float | None = None,
         timeout_controller: TimeoutController | None = None,
     ) -> AsyncGenerator[StreamEvent, None]:
-        """Stream events from ``agy --prompt-interactive``."""
-        effective_timeout = timeout_seconds or _DEFAULT_TIMEOUT
-        cmd = self._build_command(
-            streaming=True,
+        """Stream a response from agy.
+
+        agy exposes no incremental stream, so this runs the one-shot
+        ``--print`` path and emits the answer as a single text delta followed
+        by the final result event. This keeps the streaming contract intact
+        for the orchestrator while matching what the CLI can actually do.
+        """
+        response = await self.send(
+            prompt,
             resume_session=resume_session,
             continue_session=continue_session,
-        )
-        cmd, cwd = self._host_command(cmd)
-
-        safe_cmd = _safe_command_for_logging(cmd)
-        logger.debug("Antigravity send_streaming: %s", safe_cmd)
-
-        proc = await asyncio.create_subprocess_exec(
-            *cmd,
-            stdin=asyncio.subprocess.PIPE,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-            cwd=cwd,
-            env=build_subprocess_env(self._config),
-            limit=4 * 1024 * 1024,
-            creationflags=_CREATION_FLAGS,
+            timeout_seconds=timeout_seconds,
+            timeout_controller=timeout_controller,
         )
 
-        if proc.stderr is None:
-            msg = "Antigravity subprocess created without stderr pipe"
-            raise RuntimeError(msg)
+        if response.result:
+            yield AssistantTextDelta(type="assistant", text=response.result)
 
-        stderr_task = asyncio.create_task(proc.stderr.read())
-        reg, tracked = self._track_process(proc)
-
-        state = _AntigravityStreamState(last_session_id=resume_session)
-        timed_out = False
-
-        try:
-            await _feed_stdin_and_close(proc, prompt)
-            try:
-                async for event in self._stream_events(
-                    proc,
-                    state,
-                    effective_timeout,
-                    timeout_controller=timeout_controller,
-                ):
-                    yield event
-            except TimeoutError:
-                timed_out = True
-                yield ResultEvent(
-                    type="result",
-                    result="Timeout",
-                    is_error=True,
-                    session_id=state.last_session_id,
-                )
-        finally:
-            stderr_bytes = await _finish_stream_process(proc, stderr_task)
-            self._untrack_process(reg, tracked)
-
-        # Emit synthetic result if stream ended without one
-        final_event = _build_stream_exit_event(
-            returncode=proc.returncode,
-            stderr_bytes=stderr_bytes,
-            state=state,
+        yield ResultEvent(
+            type="result",
+            result=response.result,
+            is_error=response.is_error,
+            returncode=response.returncode,
+            session_id=response.session_id,
         )
-        if final_event is not None and not timed_out:
-            yield final_event
-
-    async def _stream_events(
-        self,
-        proc: asyncio.subprocess.Process,
-        state: _AntigravityStreamState,
-        timeout_seconds: float,
-        *,
-        timeout_controller: TimeoutController | None,
-    ) -> AsyncGenerator[StreamEvent, None]:
-        """Read lines and yield normalized stream events."""
-        if proc.stdout is None:
-            msg = "Antigravity subprocess created without stdout pipe"
-            raise RuntimeError(msg)
-
-        if timeout_controller is not None:
-            async for event in _stream_events_with_controller(
-                proc,
-                state,
-                timeout_controller=timeout_controller,
-            ):
-                yield event
-        else:
-            async for event in _stream_events_plain(
-                proc,
-                state,
-                timeout_seconds=timeout_seconds,
-            ):
-                yield event
 
 
 # -- Module-level helpers -----------------------------------------------------
-
-
-async def _stream_events_plain(
-    proc: asyncio.subprocess.Process,
-    state: _AntigravityStreamState,
-    *,
-    timeout_seconds: float,
-) -> AsyncGenerator[StreamEvent, None]:
-    """Stream events with a fixed timeout."""
-    assert proc.stdout is not None
-    async with asyncio.timeout(timeout_seconds):
-        while True:
-            line_bytes = await proc.stdout.readline()
-            if not line_bytes:
-                break
-            line = line_bytes.decode(errors="replace")
-            for event in parse_antigravity_stream_line(line):
-                state.track(event)
-                yield event
-
-
-async def _stream_events_with_controller(
-    proc: asyncio.subprocess.Process,
-    state: _AntigravityStreamState,
-    *,
-    timeout_controller: TimeoutController,
-) -> AsyncGenerator[StreamEvent, None]:
-    """Stream events with a TimeoutController that supports extension."""
-    assert proc.stdout is not None
-    while True:
-        try:
-            async with asyncio.timeout(timeout_controller.activity_extension_seconds):
-                line_bytes = await proc.stdout.readline()
-                if not line_bytes:
-                    break
-                line = line_bytes.decode(errors="replace")
-                for event in parse_antigravity_stream_line(line):
-                    state.track(event)
-                    yield event
-        except TimeoutError:
-            if timeout_controller.try_extend():
-                continue
-            raise
-
-
-async def _finish_stream_process(
-    proc: asyncio.subprocess.Process,
-    stderr_task: asyncio.Task[bytes],
-) -> bytes:
-    """Ensure process shutdown and return collected stderr."""
-    if proc.returncode is None:
-        try:
-            await asyncio.wait_for(proc.wait(), timeout=1.0)
-        except TimeoutError:
-            force_kill_process_tree(proc.pid)
-            await proc.wait()
-    else:
-        await proc.wait()
-    return await stderr_task
-
-
-def _build_stream_exit_event(
-    *,
-    returncode: int | None,
-    stderr_bytes: bytes,
-    state: _AntigravityStreamState,
-) -> ResultEvent | None:
-    """Build a synthetic final ResultEvent when the stream lacked one."""
-    if state.saw_result:
-        return None
-
-    if returncode == 0:
-        return ResultEvent(
-            type="result",
-            result="",
-            is_error=False,
-            returncode=returncode,
-            session_id=state.last_session_id,
-        )
-
-    detail = stderr_bytes.decode(errors="replace").strip()
-    if not detail:
-        detail = f"Antigravity exited with code {returncode}"
-    return ResultEvent(
-        type="result",
-        result=detail[:500],
-        is_error=True,
-        returncode=returncode,
-        session_id=state.last_session_id,
-    )
 
 
 def _safe_command_for_logging(cmd: list[str]) -> list[str]:

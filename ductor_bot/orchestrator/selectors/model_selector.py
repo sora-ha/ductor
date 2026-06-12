@@ -11,6 +11,7 @@ from ductor_bot.cli.auth import AuthStatus, check_all_auth
 from ductor_bot.config import (
     ANTIGRAVITY_MODELS_ORDERED,
     CLAUDE_MODELS_ORDERED,
+    get_antigravity_models,
     get_gemini_models,
     update_config_file_async,
 )
@@ -139,6 +140,12 @@ def _gemini_models_for_selector() -> list[str]:
     stable = [model for model in models if "preview" not in model]
     preview = [model for model in models if "preview" in model]
     return [*_GEMINI_ALIAS_ORDER, *stable, *preview]
+
+
+def _antigravity_models_for_selector() -> list[str]:
+    """Return the agy default, then models discovered from ``agy models``."""
+    discovered = sorted(get_antigravity_models())
+    return [*ANTIGRAVITY_MODELS_ORDERED, *discovered]
 
 
 def _button_label(model_id: str) -> str:
@@ -412,7 +419,7 @@ async def _build_model_step(
         return SelectorResponse(text=f"{header}\n\n{t('model.select_gemini')}", buttons=keyboard)
 
     if provider == "antigravity":
-        antigravity_rows = _chunk_buttons(list(ANTIGRAVITY_MODELS_ORDERED), columns=1)
+        antigravity_rows = _chunk_buttons(_antigravity_models_for_selector(), columns=1)
         antigravity_rows.append([Button(text=t("model.btn_back"), callback_data="ms:b:root")])
         keyboard = ButtonGrid(rows=antigravity_rows)
         return SelectorResponse(
