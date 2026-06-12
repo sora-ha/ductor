@@ -111,6 +111,19 @@ def test_registry_provider_for_claude() -> None:
     assert reg.provider_for("haiku") == "claude"
 
 
+@pytest.mark.parametrize(
+    "model_id",
+    [
+        "claude-opus-4-7",
+        "claude-sonnet-4-6",
+        "claude-haiku-4-5-20251001",
+    ],
+)
+def test_registry_provider_for_full_claude_model_ids(model_id: str) -> None:
+    reg = ModelRegistry()
+    assert reg.provider_for(model_id) == "claude"
+
+
 def test_registry_provider_for_codex() -> None:
     reg = ModelRegistry()
     assert reg.provider_for("gpt-5.2-codex") == "codex"
