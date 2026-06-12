@@ -559,6 +559,9 @@ CLAUDE_MODELS_ORDERED: tuple[str, ...] = (
     "sonnet[1m]",
     "opus",
     "opus[1m]",
+    # Claude Code >= 2.1.172 resolves the "fable" alias to the latest Fable
+    # model (same auto-tracking as the opus/sonnet aliases).
+    "fable",
 )
 CLAUDE_MODELS: frozenset[str] = frozenset(CLAUDE_MODELS_ORDERED)
 
@@ -578,8 +581,13 @@ class ModelRegistry:
 
     @staticmethod
     def provider_for(model_id: str) -> str:
-        """Return the provider for a model ID."""
-        if model_id in CLAUDE_MODELS:
+        """Return the provider for a model ID.
+
+        Claude Code accepts both the short aliases in ``CLAUDE_MODELS`` and
+        full model IDs (``claude-opus-4-7``), so any ``claude-`` prefix
+        routes to Claude.
+        """
+        if model_id in CLAUDE_MODELS or model_id.startswith("claude-"):
             return "claude"
         if (
             model_id in _GEMINI_ALIASES
