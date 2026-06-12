@@ -584,11 +584,8 @@ class ModelRegistry:
         """Return the provider for a model ID.
 
         Claude Code accepts both short aliases (opus/sonnet/haiku) and full
-        Claude model IDs such as ``claude-opus-4-7`` /
-        ``claude-sonnet-4-6`` / ``claude-haiku-4-5-20251001``. The registry
-        previously matched only the short aliases, so a full Claude model
-        ID fell through to the codex branch and broke Claude routing for
-        clients passing the canonical model name.
+        model IDs (``claude-opus-4-7``), so any ``claude-`` prefix routes
+        to Claude.
         """
         if model_id in CLAUDE_MODELS or model_id.startswith("claude-"):
             return "claude"
