@@ -18,6 +18,7 @@ from ductor_bot.cli.base import (
     CLIConfig,
     _feed_stdin_and_close,
 )
+from ductor_bot.cli.executor import build_subprocess_env
 from ductor_bot.cli.process_registry import ProcessRegistry, TrackedProcess
 from ductor_bot.cli.stream_events import ResultEvent, StreamEvent, SystemInitEvent
 from ductor_bot.cli.types import CLIResponse
@@ -172,6 +173,7 @@ class AntigravityCLI(BaseCLI):
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
             cwd=cwd,
+            env=build_subprocess_env(self._config),
             creationflags=_CREATION_FLAGS,
         )
 
@@ -246,6 +248,7 @@ class AntigravityCLI(BaseCLI):
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
             cwd=cwd,
+            env=build_subprocess_env(self._config),
             limit=4 * 1024 * 1024,
             creationflags=_CREATION_FLAGS,
         )
@@ -306,12 +309,16 @@ class AntigravityCLI(BaseCLI):
 
         if timeout_controller is not None:
             async for event in _stream_events_with_controller(
-                proc, state, timeout_controller=timeout_controller,
+                proc,
+                state,
+                timeout_controller=timeout_controller,
             ):
                 yield event
         else:
             async for event in _stream_events_plain(
-                proc, state, timeout_seconds=timeout_seconds,
+                proc,
+                state,
+                timeout_seconds=timeout_seconds,
             ):
                 yield event
 

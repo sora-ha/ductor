@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import asyncio
 import json
-from unittest.mock import AsyncMock, patch
+from typing import Any
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from ductor_bot.cli.antigravity_events import (
     parse_antigravity_json,
@@ -146,3 +147,83 @@ async def _bytes_result(value: bytes) -> bytes:
 
 def test_antigravity_model_prefix_routes_to_provider() -> None:
     assert ModelRegistry().provider_for("antigravity-default") == "antigravity"
+
+
+def _make_oneshot_process(stdout: bytes = b'{"response": "ok"}') -> AsyncMock:
+    proc = AsyncMock(spec=asyncio.subprocess.Process)
+    proc.returncode = 0
+    proc.pid = 12345
+    proc.communicate = AsyncMock(return_value=(stdout, b""))
+    return proc
+
+
+def _make_streaming_process(returncode: int = 0) -> AsyncMock:
+    proc = AsyncMock(spec=asyncio.subprocess.Process)
+    proc.returncode = returncode
+    proc.pid = 12345
+    proc.kill = MagicMock()
+    proc.wait = AsyncMock()
+
+    stdout_mock = AsyncMock()
+    stdout_mock.readline = AsyncMock(return_value=b"")
+    proc.stdout = stdout_mock
+
+    stderr_mock = AsyncMock()
+    stderr_mock.read = AsyncMock(return_value=b"")
+    proc.stderr = stderr_mock
+
+    stdin_mock = MagicMock()
+    stdin_mock.write = MagicMock()
+    stdin_mock.drain = AsyncMock()
+    stdin_mock.close = MagicMock()
+    proc.stdin = stdin_mock
+
+    return proc
+
+
+def _make_cli(**overrides: Any) -> AntigravityCLI:
+    return AntigravityCLI(
+        CLIConfig(
+            provider="antigravity",
+            model="antigravity-default",
+            working_dir=".",
+            **overrides,
+        )
+    )
+
+
+class TestAgentEnvInjection:
+    """agy subprocesses must receive the DUCTOR_* agent identification env."""
+
+    async def test_send_injects_agent_env(self) -> None:
+        cli = _make_cli(chat_id=77, transport="tg")
+        proc = _make_oneshot_process()
+
+        with patch(
+            "ductor_bot.cli.antigravity_provider.asyncio.create_subprocess_exec",
+            return_value=proc,
+        ) as spawn:
+            await cli.send("hello")
+
+        env = spawn.call_args.kwargs["env"]
+        assert env["DUCTOR_AGENT_NAME"] == "main"
+        assert env["DUCTOR_CHAT_ID"] == "77"
+        assert env["DUCTOR_TRANSPORT"] == "tg"
+        assert "DUCTOR_HOME" in env
+        assert "DUCTOR_SHARED_MEMORY_PATH" in env
+
+    async def test_send_streaming_injects_agent_env(self) -> None:
+        cli = _make_cli(chat_id=77)
+        proc = _make_streaming_process()
+
+        with patch(
+            "ductor_bot.cli.antigravity_provider.asyncio.create_subprocess_exec",
+            return_value=proc,
+        ) as spawn:
+            async for _event in cli.send_streaming("hello"):
+                pass
+
+        env = spawn.call_args.kwargs["env"]
+        assert env["DUCTOR_AGENT_NAME"] == "main"
+        assert env["DUCTOR_CHAT_ID"] == "77"
+        assert "DUCTOR_HOME" in env

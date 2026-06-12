@@ -483,9 +483,7 @@ def test_gemini_uses_api_key_mode_false_for_oauth(
 # -- Antigravity auth --
 
 
-def test_check_antigravity_auth_not_found(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_check_antigravity_auth_not_found(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     import ductor_bot.cli.auth as _auth_mod
 
     monkeypatch.setattr(Path, "home", lambda: tmp_path)

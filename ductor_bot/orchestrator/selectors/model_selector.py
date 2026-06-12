@@ -415,7 +415,9 @@ async def _build_model_step(
         antigravity_rows = _chunk_buttons(list(ANTIGRAVITY_MODELS_ORDERED), columns=1)
         antigravity_rows.append([Button(text=t("model.btn_back"), callback_data="ms:b:root")])
         keyboard = ButtonGrid(rows=antigravity_rows)
-        return SelectorResponse(text=f"{header}\n\n{t('model.select_antigravity')}", buttons=keyboard)
+        return SelectorResponse(
+            text=f"{header}\n\n{t('model.select_antigravity')}", buttons=keyboard
+        )
 
     # Use cache instead of live discovery
     codex_models = codex_cache.models if codex_cache else []
