@@ -282,21 +282,21 @@ class EditStreamEditor:
             await self._create_message(chunks[0])
 
         logger.debug("Message sealed, starting new segment")
-        
+
         # We must permanently split our state so the next render doesn't include chunks[0] again.
         self._flush_text_segment()
         if self._s.tool_tracker.has_entries:
             self._flush_tool_segment()
-            
+
         remaining = "\n\n".join(chunks[1:])
-        
+
         # Discard the old unsealed segments and indicators, replace with the remaining HTML
-        self._s.segments = self._s.segments[:self._s.sealed_segment_idx]
+        self._s.segments = self._s.segments[: self._s.sealed_segment_idx]
         if remaining.strip():
             self._s.segments.append(remaining)
-            
+
         self._s.indicator_indices.clear()
-        
+
         self._s.active_msg = None
         if remaining.strip():
             await self._create_message(remaining)
