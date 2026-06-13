@@ -10,6 +10,7 @@ import time
 from pathlib import Path
 
 from ductor_bot.infra.atomic_io import atomic_bytes_save
+from ductor_bot.infra.platform import CREATION_FLAGS as _CREATION_FLAGS
 from ductor_bot.infra.platform import is_windows
 from ductor_bot.infra.process_tree import (
     force_kill_process_tree,
@@ -45,6 +46,7 @@ def _is_process_alive_windows(pid: int) -> bool:
             text=True,
             timeout=3,
             check=False,
+            creationflags=_CREATION_FLAGS,
         )
     except (OSError, subprocess.TimeoutExpired):
         return False
