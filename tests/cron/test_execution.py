@@ -16,6 +16,7 @@ from ductor_bot.cron.execution import (
     parse_claude_result,
     parse_codex_result,
     parse_gemini_result,
+    parse_kimi_result,
     parse_result,
 )
 
@@ -143,6 +144,43 @@ class TestBuildCmd:
         assert result is not None
         assert result.cmd[0] == "/usr/bin/claude"
         assert result.stdin_input is None
+
+    def test_kimi_provider(self) -> None:
+        exec_config = TaskExecutionConfig(
+            provider="kimi",
+            model="kimi-code/kimi-for-coding",
+            reasoning_effort="",
+            cli_parameters=["--verbose"],
+            permission_mode="bypassPermissions",
+            working_dir="/tmp",
+            file_access="all",
+        )
+        with patch("ductor_bot.cron.execution.which", return_value="/usr/bin/kimi"):
+            result = build_cmd(exec_config, "hello")
+        assert result is not None
+        assert result.cmd[0] == "/usr/bin/kimi"
+        assert "--print" in result.cmd
+        assert "--output-format" in result.cmd
+        assert "stream-json" in result.cmd
+        assert "--model" in result.cmd
+        assert "kimi-code/kimi-for-coding" in result.cmd
+        assert "--yolo" in result.cmd
+        assert "--verbose" in result.cmd
+        assert "--prompt" in result.cmd
+        assert result.cmd[-1] == "hello"
+
+    def test_kimi_returns_none_when_cli_missing(self) -> None:
+        exec_config = TaskExecutionConfig(
+            provider="kimi",
+            model="kimi-code/kimi-for-coding",
+            reasoning_effort="",
+            cli_parameters=[],
+            permission_mode="plan",
+            working_dir="/tmp",
+            file_access="all",
+        )
+        with patch("ductor_bot.cron.execution.which", return_value=None):
+            assert build_cmd(exec_config, "hello") is None
 
 
 class TestExecuteOneShotStdin:
@@ -284,9 +322,26 @@ class TestParseGemini:
         assert parse_gemini_result(raw) == "Raw gemini output"
 
 
+class TestParseKimi:
+    def test_empty_bytes(self) -> None:
+        assert parse_kimi_result(b"") == ""
+
+    def test_assistant_lines(self) -> None:
+        data = b'{"role": "assistant", "content": "Hello "}\n{"role": "assistant", "content": "world"}'
+        assert parse_kimi_result(data) == "Hello world"
+
+    def test_non_json_returns_raw(self) -> None:
+        raw = b"Raw kimi output"
+        assert parse_kimi_result(raw) == "Raw kimi output"
+
+
 class TestParseResult:
     def test_dispatches_to_gemini_parser(self) -> None:
         assert parse_result("gemini", b'{"result":"ok"}') == "ok"
+
+    def test_dispatches_to_kimi_parser(self) -> None:
+        data = b'{"role": "assistant", "content": "Kimi result"}'
+        assert parse_result("kimi", data) == "Kimi result"
 
     def test_unknown_provider_falls_back_to_claude(self) -> None:
         assert parse_result("unknown", b'{"result":"fallback"}') == "fallback"

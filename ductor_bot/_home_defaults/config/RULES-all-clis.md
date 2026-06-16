@@ -15,7 +15,7 @@ Edit only when the user asks for behavior changes.
 
 ### Model and Provider
 
-- `provider`: `claude`, `codex`, `gemini`, or `antigravity`
+- `provider`: `claude`, `codex`, `gemini`, `antigravity`, or `kimi`
 - `model`: default model id
   - Claude models: `haiku`, `sonnet`, `sonnet[1m]`, `opus`, `opus[1m]`, `fable`
   - Codex models:
@@ -31,6 +31,7 @@ Edit only when the user asks for behavior changes.
     - `gemini-3-pro-preview` - Next-gen preview
     - `gemini-3-flash-preview` - Next-gen fast preview
     - `gemini-3.1-pro-preview` - Latest preview
+   - Kimi models: `kimi-code/kimi-for-coding` (recommended), `kimi-k2-0905-preview`
   - Antigravity models:
     - `antigravity-default` - Let `agy` choose the provider-level default
     - Display names from `config/antigravity_models.json` may be known at runtime,

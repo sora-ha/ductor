@@ -10,11 +10,14 @@ from ductor_bot.config import (
     _GEMINI_ALIASES,
     ANTIGRAVITY_MODELS,
     CLAUDE_MODELS,
+    DEFAULT_KIMI_MODEL,
     ModelRegistry,
     get_antigravity_models,
     get_gemini_models,
+    get_kimi_models,
     set_antigravity_models,
     set_gemini_models,
+    set_kimi_models,
 )
 
 if TYPE_CHECKING:
@@ -78,6 +81,8 @@ class ProviderManager:
             return "Gemini"
         if provider == "antigravity":
             return "Antigravity"
+        if provider == "kimi":
+            return "Kimi"
         return "Codex"
 
     # -- Auth / init ----------------------------------------------------------
@@ -129,6 +134,11 @@ class ProviderManager:
         set_antigravity_models(frozenset(models))
         self.refresh_known_model_ids()
 
+    def on_kimi_models_refresh(self, models: tuple[str, ...]) -> None:
+        """Callback for Kimi model discovery: update model registry."""
+        set_kimi_models(frozenset(models))
+        self.refresh_known_model_ids()
+
     def refresh_gemini_api_key_mode(self) -> bool:
         """Re-read ``~/.gemini/settings.json`` and update the cache.
 
@@ -148,6 +158,7 @@ class ProviderManager:
             | _GEMINI_ALIASES
             | get_gemini_models()
             | get_antigravity_models()
+            | get_kimi_models()
         )
 
     def resolve_runtime_target(self, requested_model: str | None = None) -> tuple[str, str]:
@@ -158,6 +169,8 @@ class ProviderManager:
     def is_known_model(self, candidate: str) -> bool:
         """Return True if *candidate* is a recognized model ID for any provider."""
         if candidate in self._known_model_ids:
+            return True
+        if candidate == "kimi-auto":
             return True
         codex = self._codex_cache_fn() if self._codex_cache_fn else None
         return bool(codex and codex.validate_model(candidate))
@@ -177,6 +190,8 @@ class ProviderManager:
             return ""
         if provider == "antigravity":
             return "antigravity-default"
+        if provider == "kimi":
+            return DEFAULT_KIMI_MODEL
         return ""
 
     def resolve_session_directive(self, key: str) -> tuple[str, str] | None:
@@ -187,7 +202,7 @@ class ProviderManager:
         - known model   (``@opus``)  -> (inferred_provider, model)
         - unknown                    -> None
         """
-        if key in ("claude", "codex", "gemini", "antigravity"):
+        if key in ("claude", "codex", "gemini", "antigravity", "kimi"):
             return key, self.default_model_for_provider(key)
         if self.is_known_model(key):
             provider = self._models.provider_for(key)
@@ -209,6 +224,7 @@ class ProviderManager:
             "gemini": ("Gemini", "#8B5CF6"),
             "codex": ("Codex", "#10B981"),
             "antigravity": ("Antigravity", "#3B82F6"),
+            "kimi": ("Kimi", "#06B6D4"),
         }
         providers: list[dict[str, object]] = []
         for pid in sorted(self._available_providers):
@@ -225,6 +241,9 @@ class ProviderManager:
             elif pid == "antigravity":
                 antigravity = get_antigravity_models()
                 models = sorted(antigravity) if antigravity else sorted(ANTIGRAVITY_MODELS)
+            elif pid == "kimi":
+                kimi_models = get_kimi_models()
+                models = sorted(kimi_models) if kimi_models else [DEFAULT_KIMI_MODEL]
             else:
                 models = []
             providers.append({"id": pid, "name": name, "color": color, "models": models})

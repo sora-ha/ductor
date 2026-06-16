@@ -56,8 +56,8 @@ OPTIONAL:
                   If config has no user_timezone either, falls back to UTC.
 
 EXECUTION OVERRIDES (optional, override global config for this specific job):
-  --provider          CLI provider: 'claude', 'codex', or 'gemini' (defaults to global config)
-  --model             Model name (e.g. 'opus', 'sonnet', 'gpt-5.4')
+  --provider          CLI provider: 'claude', 'codex', 'gemini', or 'kimi' (defaults to global config)
+  --model             Model name (e.g. 'opus', 'sonnet', 'gpt-5.4', 'kimi-code/kimi-for-coding')
   --reasoning-effort  Thinking level for Codex: 'low', 'medium', 'high', 'xhigh'
   --cli-parameters    Additional CLI flags as JSON array (e.g. '["--chrome"]' for Claude only)
 
@@ -215,9 +215,9 @@ def main() -> None:
     )
     parser.add_argument(
         "--provider",
-        choices=["claude", "codex", "gemini"],
+        choices=["claude", "codex", "gemini", "kimi"],
         help=(
-            "CLI provider for this job (claude, codex, or gemini). If omitted, uses global config."
+            "CLI provider for this job (claude, codex, gemini, or kimi). If omitted, uses global config."
         ),
     )
     parser.add_argument(

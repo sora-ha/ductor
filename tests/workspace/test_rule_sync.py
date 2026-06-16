@@ -17,6 +17,7 @@ def test_sync_does_not_create_missing_files(tmp_path: Path) -> None:
     sync_rule_files(tmp_path)
     assert not (tmp_path / "AGENTS.md").exists()
     assert not (tmp_path / "GEMINI.md").exists()
+    assert not (tmp_path / "KIMI.md").exists()
 
 
 def test_sync_does_not_create_claude_from_agents(tmp_path: Path) -> None:
@@ -101,6 +102,27 @@ def test_sync_recursive_does_not_create_missing(tmp_path: Path) -> None:
 
     assert not (sub / "AGENTS.md").exists()
     assert not (sub / "GEMINI.md").exists()
+    assert not (sub / "KIMI.md").exists()
+
+
+def test_sync_kimi_with_others(tmp_path: Path) -> None:
+    """KIMI.md is synced alongside AGENTS.md and GEMINI.md."""
+    claude = tmp_path / "CLAUDE.md"
+    agents = tmp_path / "AGENTS.md"
+    gemini = tmp_path / "GEMINI.md"
+    kimi = tmp_path / "KIMI.md"
+
+    agents.write_text("old")
+    gemini.write_text("old")
+    kimi.write_text("old")
+    time.sleep(0.05)
+    claude.write_text("new content")
+
+    sync_rule_files(tmp_path)
+
+    assert agents.read_text() == "new content"
+    assert gemini.read_text() == "new content"
+    assert kimi.read_text() == "new content"
 
 
 def test_sync_skips_venv_and_dotdirs(tmp_path: Path) -> None:

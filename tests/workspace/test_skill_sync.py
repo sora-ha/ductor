@@ -317,6 +317,20 @@ def test_sync_gemini_to_ductor(tmp_path: Path) -> None:
     assert link.resolve() == (gemini_skills / "from-gemini").resolve()
 
 
+def test_sync_kimi_to_ductor(tmp_path: Path) -> None:
+    paths = _make_paths(tmp_path)
+    kimi_home = tmp_path / "fake_home" / ".kimi"
+    kimi_home.mkdir(parents=True)
+    kimi_skills = kimi_home / "skills"
+    _make_skill(kimi_skills, "from-kimi")
+    with patch("ductor_bot.workspace.skill_sync._cli_skill_dirs") as mock:
+        mock.return_value = {"kimi": kimi_skills}
+        sync_skills(paths)
+    link = paths.skills_dir / "from-kimi"
+    assert link.is_symlink()
+    assert link.resolve() == (kimi_skills / "from-kimi").resolve()
+
+
 def test_sync_ductor_to_all_three(tmp_path: Path) -> None:
     paths, claude_skills, codex_skills = _setup_three_dirs(tmp_path)
     gemini_home = tmp_path / "fake_home" / ".gemini"

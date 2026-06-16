@@ -105,7 +105,8 @@
         "claude": ["--verbose", "--chrome"],
         "codex": [],
         "gemini": [],
-        "antigravity": []
+        "antigravity": [],
+        "kimi": []
     },
     "image": {"max_dimension": 2000, "output_format": "webp", "quality": 85},
     "scene": {"seen_reaction": false, "status_reaction": true, "technical_footer": false},
@@ -124,5 +125,14 @@
         "max_extensions": 3
     },
     "tasks": {"enabled": true, "max_parallel": 5, "timeout_seconds": 3600.0},
+    "skills": {
+        "sync_enabled": true,
+        "sync": {
+            "claude": true,
+            "codex": true,
+            "gemini": true,
+            "kimi": true
+        }
+    },
     "interagent_port": 8799
 }

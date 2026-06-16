@@ -27,9 +27,11 @@ _AUTHED_CLAUDE = AuthResult("claude", AuthStatus.AUTHENTICATED)
 _AUTHED_CODEX = AuthResult("codex", AuthStatus.AUTHENTICATED)
 _AUTHED_GEMINI = AuthResult("gemini", AuthStatus.AUTHENTICATED)
 _AUTHED_ANTIGRAVITY = AuthResult("antigravity", AuthStatus.AUTHENTICATED)
+_AUTHED_KIMI = AuthResult("kimi", AuthStatus.AUTHENTICATED)
 _NOT_FOUND_CLAUDE = AuthResult("claude", AuthStatus.NOT_FOUND)
 _NOT_FOUND_CODEX = AuthResult("codex", AuthStatus.NOT_FOUND)
 _NOT_FOUND_GEMINI = AuthResult("gemini", AuthStatus.NOT_FOUND)
+_NOT_FOUND_KIMI = AuthResult("kimi", AuthStatus.NOT_FOUND)
 
 _CODEX_MODELS = [
     CodexModelInfo(
@@ -260,6 +262,14 @@ async def test_callback_provider_antigravity(orch: Orchestrator) -> None:
     assert "antigravity-default" in labels
 
 
+async def test_callback_provider_kimi(orch: Orchestrator) -> None:
+    resp = await handle_model_callback(orch, SessionKey(chat_id=1), "ms:p:kimi")
+    assert "Select Kimi model" in resp.text
+    assert resp.buttons is not None
+    labels = [btn.text for row in resp.buttons.rows for btn in row]
+    assert "kimi-code/kimi-for-coding" in labels
+
+
 # -- handle_model_callback: model selection --
 
 
@@ -277,6 +287,12 @@ async def test_callback_model_antigravity_switches_without_reasoning_step(
     object.__setattr__(orch._process_registry, "kill_all", AsyncMock(return_value=0))
     resp = await handle_model_callback(orch, SessionKey(chat_id=1), "ms:m:antigravity-default")
     assert "antigravity-default" in resp.text
+
+
+async def test_callback_model_kimi_switches_without_reasoning_step(orch: Orchestrator) -> None:
+    object.__setattr__(orch._process_registry, "kill_all", AsyncMock(return_value=0))
+    resp = await handle_model_callback(orch, SessionKey(chat_id=1), "ms:m:kimi-code/kimi-for-coding")
+    assert "kimi-code/kimi-for-coding" in resp.text
     assert "Thinking level" not in resp.text
     assert resp.buttons is None
     assert orch._config.model == "antigravity-default"

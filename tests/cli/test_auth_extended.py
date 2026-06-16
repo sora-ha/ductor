@@ -27,12 +27,15 @@ def test_check_codex_auth_installed(tmp_path: Path, monkeypatch: pytest.MonkeyPa
     assert result.auth_file is None
 
 
-def test_check_all_auth_returns_both(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_check_all_auth_returns_all_providers(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(Path, "home", lambda: tmp_path)
     monkeypatch.delenv("CODEX_HOME", raising=False)
     results = check_all_auth()
     assert "claude" in results
     assert "codex" in results
+    assert "gemini" in results
+    assert "antigravity" in results
+    assert "kimi" in results
 
 
 def test_format_age_future_returns_just_now() -> None:

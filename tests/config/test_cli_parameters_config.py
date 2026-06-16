@@ -15,6 +15,7 @@ def test_cli_parameters_config_defaults() -> None:
     assert config.codex == []
     assert config.gemini == []
     assert config.antigravity == []
+    assert config.kimi == []
 
 
 def test_cli_parameters_config_with_values() -> None:
@@ -24,11 +25,13 @@ def test_cli_parameters_config_with_values() -> None:
         codex=["--verbose", "--debug"],
         gemini=["--experimental"],
         antigravity=["--log-file", "agy.log"],
+        kimi=["--verbose"],
     )
     assert config.claude == ["--fast", "--no-cache"]
     assert config.codex == ["--verbose", "--debug"]
     assert config.gemini == ["--experimental"]
     assert config.antigravity == ["--log-file", "agy.log"]
+    assert config.kimi == ["--verbose"]
 
 
 def test_agent_config_includes_cli_parameters() -> None:
@@ -40,6 +43,7 @@ def test_agent_config_includes_cli_parameters() -> None:
     assert config.cli_parameters.codex == []
     assert config.cli_parameters.gemini == []
     assert config.cli_parameters.antigravity == []
+    assert config.cli_parameters.kimi == []
 
 
 def test_agent_config_with_cli_parameters() -> None:
@@ -49,11 +53,13 @@ def test_agent_config_with_cli_parameters() -> None:
             claude=["--fast"],
             codex=["--verbose"],
             antigravity=["--log-file", "agy.log"],
+            kimi=["--verbose"],
         ),
     )
     assert config.cli_parameters.claude == ["--fast"]
     assert config.cli_parameters.codex == ["--verbose"]
     assert config.cli_parameters.antigravity == ["--log-file", "agy.log"]
+    assert config.cli_parameters.kimi == ["--verbose"]
 
 
 def test_agent_config_json_round_trip_with_cli_parameters() -> None:
@@ -63,6 +69,7 @@ def test_agent_config_json_round_trip_with_cli_parameters() -> None:
             claude=["--fast", "--no-cache"],
             codex=["--verbose"],
             antigravity=["--log-file", "agy.log"],
+            kimi=["--verbose"],
         ),
     )
 
@@ -77,6 +84,7 @@ def test_agent_config_json_round_trip_with_cli_parameters() -> None:
     assert restored.cli_parameters.claude == ["--fast", "--no-cache"]
     assert restored.cli_parameters.codex == ["--verbose"]
     assert restored.cli_parameters.antigravity == ["--log-file", "agy.log"]
+    assert restored.cli_parameters.kimi == ["--verbose"]
 
 
 def test_deep_merge_preserves_cli_parameters() -> None:
@@ -145,6 +153,8 @@ def test_deep_merge_nested_cli_parameters() -> None:
     assert merged["cli_parameters"]["codex"] == []
     assert "antigravity" in merged["cli_parameters"]
     assert merged["cli_parameters"]["antigravity"] == []
+    assert "kimi" in merged["cli_parameters"]
+    assert merged["cli_parameters"]["kimi"] == []
     assert changed is True
 
 

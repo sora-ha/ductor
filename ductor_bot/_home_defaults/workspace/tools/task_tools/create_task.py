@@ -10,8 +10,8 @@ Usage:
 
 Options:
     --name NAME        Human-readable task name (e.g. "Flugsuche Paris")
-    --provider PROV    Override provider (claude, codex, gemini, antigravity)
-    --model MODEL      Override model (opus, sonnet, flash, etc.)
+    --provider PROV    Override provider (claude, codex, gemini, antigravity, kimi)
+    --model MODEL      Override model (opus, sonnet, flash, kimi-code/kimi-for-coding, etc.)
     --thinking LEVEL   Reasoning effort for codex (low, medium, high)
     --priority LEVEL   Scheduling priority (interactive|background|batch)
                        interactive bypasses the concurrency cap so user

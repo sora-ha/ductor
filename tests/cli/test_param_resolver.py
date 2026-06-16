@@ -16,7 +16,9 @@ from ductor_bot.config import (
     AgentConfig,
     CLIParametersConfig,
     reset_gemini_models,
+    reset_kimi_models,
     set_gemini_models,
+    set_kimi_models,
 )
 from ductor_bot.errors import DuctorError
 
@@ -61,6 +63,11 @@ def codex_cache() -> CodexModelCache:
 @pytest.fixture(autouse=True)
 def _reset_gemini_models() -> None:
     reset_gemini_models()
+
+
+@pytest.fixture(autouse=True)
+def _reset_kimi_models() -> None:
+    reset_kimi_models()
 
 
 def test_resolve_global_only(base_config: AgentConfig, codex_cache: CodexModelCache) -> None:
@@ -303,3 +310,51 @@ def test_resolve_missing_bucket_falls_back_to_empty(
 
     assert result.provider == "claude"
     assert result.cli_parameters == []
+
+
+def test_resolve_kimi_default_model(base_config: AgentConfig, codex_cache: CodexModelCache) -> None:
+    overrides = TaskOverrides(provider="kimi", model="kimi-code/kimi-for-coding")
+
+    result = resolve_cli_config(base_config, codex_cache, task_overrides=overrides)
+
+    assert result.provider == "kimi"
+    assert result.model == "kimi-code/kimi-for-coding"
+
+
+def test_resolve_kimi_prefix_accepted(base_config: AgentConfig, codex_cache: CodexModelCache) -> None:
+    overrides = TaskOverrides(provider="kimi", model="kimi-k2-0905-preview")
+
+    result = resolve_cli_config(base_config, codex_cache, task_overrides=overrides)
+
+    assert result.provider == "kimi"
+    assert result.model == "kimi-k2-0905-preview"
+
+
+def test_resolve_kimi_invalid_model(base_config: AgentConfig, codex_cache: CodexModelCache) -> None:
+    overrides = TaskOverrides(provider="kimi", model="gpt-4o")
+
+    with pytest.raises(DuctorError, match="Invalid Kimi model"):
+        resolve_cli_config(base_config, codex_cache, task_overrides=overrides)
+
+
+def test_resolve_kimi_bucket_with_overrides(
+    base_config: AgentConfig, codex_cache: CodexModelCache
+) -> None:
+    merged = base_config.model_copy(
+        update={
+            "cli_parameters": CLIParametersConfig(
+                claude=["IGNORED"],
+                kimi=["--verbose"],
+            ),
+        }
+    )
+    overrides = TaskOverrides(
+        provider="kimi",
+        model="kimi-code/kimi-for-coding",
+        cli_parameters=["--some-flag"],
+    )
+
+    result = resolve_cli_config(merged, codex_cache, task_overrides=overrides)
+
+    assert result.provider == "kimi"
+    assert result.cli_parameters == ["--verbose", "--some-flag"]

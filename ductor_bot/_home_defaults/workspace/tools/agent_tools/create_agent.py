@@ -122,6 +122,9 @@ def _resolve_model(provider: str | None, model: str | None) -> str | None:
     if provider == "gemini":
         return _resolve_gemini_model(model, home)
 
+    if provider == "kimi":
+        return model
+
     return model
 
 
@@ -172,12 +175,12 @@ def main() -> None:
     parser.add_argument(
         "--provider",
         default=None,
-        help="AI provider (claude/openai/gemini/antigravity)",
+        help="AI provider (claude/openai/gemini/antigravity/kimi)",
     )
     parser.add_argument(
         "--model",
         default=None,
-        help="Specific model name (e.g. gpt-5.3-codex, opus, gemini-2.5-pro)",
+        help="Specific model name (e.g. gpt-5.3-codex, opus, gemini-2.5-pro, kimi-code/kimi-for-coding)",
     )
     parser.add_argument(
         "--description",

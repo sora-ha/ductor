@@ -5,12 +5,14 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import shutil
 import subprocess
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from enum import StrEnum, unique
 from pathlib import Path
+from shutil import which
 from typing import TYPE_CHECKING
 
 from ductor_bot.cli.antigravity_runtime import antigravity_process_env
@@ -31,6 +33,18 @@ _GEMINI_SELECTED_AUTH_TYPES = frozenset(
 )
 _GEMINI_NON_API_KEY_AUTH_TYPES = frozenset(
     {"oauth-personal", "vertex-ai", "compute-default-credentials", "cloud-shell"}
+)
+_KIMI_API_KEY_TOML_RE = re.compile(
+    r"""(?mx)
+    ^\s*api_key\s*=\s*
+    (?:
+        "(?P<dq>[^"]+)"
+        |
+        '(?P<sq>[^']+)'
+        |
+        (?P<bare>[^\s#]+)
+    )
+    """
 )
 
 
@@ -449,11 +463,76 @@ def check_antigravity_auth() -> AuthResult:
     return AuthResult(provider="antigravity", status=AuthStatus.NOT_FOUND)
 
 
+def check_kimi_auth() -> AuthResult:
+    """Check Kimi CLI auth via executable presence, env key, and local Kimi config."""
+    if which("kimi") is None:
+        result = AuthResult("kimi", AuthStatus.NOT_FOUND)
+        logger.debug("Auth check provider=%s status=%s", result.provider, result.status)
+        return result
+
+    if _has_nonempty_env("KIMI_API_KEY"):
+        result = AuthResult("kimi", AuthStatus.AUTHENTICATED)
+        logger.debug("Auth check provider=%s status=%s (env key)", result.provider, result.status)
+        return result
+
+    auth_file, auth_age = _kimi_auth_source()
+    if auth_file is not None and auth_age is not None:
+        result = AuthResult("kimi", AuthStatus.AUTHENTICATED, auth_file, auth_age)
+        logger.debug("Auth check provider=%s status=%s", result.provider, result.status)
+        return result
+
+    result = AuthResult("kimi", AuthStatus.INSTALLED)
+    logger.debug("Auth check provider=%s status=%s", result.provider, result.status)
+    return result
+
+
+def _kimi_share_dir() -> Path:
+    custom = _normalize_key_like_value(os.environ.get("KIMI_SHARE_DIR", ""))
+    if custom:
+        return Path(custom).expanduser()
+    return Path.home() / ".kimi"
+
+
+def _kimi_auth_source() -> tuple[Path | None, datetime | None]:
+    share_dir = _kimi_share_dir()
+    credentials_dir = share_dir / "credentials"
+    try:
+        if credentials_dir.is_dir():
+            for entry in sorted(credentials_dir.iterdir()):
+                if _is_nonempty_file(entry):
+                    return entry, datetime.fromtimestamp(entry.stat().st_mtime, tz=UTC)
+    except OSError:
+        return None, None
+
+    config_path = share_dir / "config.toml"
+    if not config_path.is_file():
+        return None, None
+    try:
+        text = config_path.read_text(encoding="utf-8")
+    except OSError:
+        return None, None
+
+    match = _KIMI_API_KEY_TOML_RE.search(text)
+    if not match:
+        return None, None
+
+    raw = match.group("dq") or match.group("sq") or match.group("bare") or ""
+    value = _normalize_key_like_value(raw)
+    if not value:
+        return None, None
+    try:
+        mtime = datetime.fromtimestamp(config_path.stat().st_mtime, tz=UTC)
+    except OSError:
+        return None, None
+    return config_path, mtime
+
+
 _CHECKERS: dict[str, Callable[[], AuthResult]] = {
     "claude": check_claude_auth,
     "codex": check_codex_auth,
     "gemini": check_gemini_auth,
     "antigravity": check_antigravity_auth,
+    "kimi": check_kimi_auth,
 }
 
 

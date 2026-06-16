@@ -986,9 +986,11 @@ class TelegramBot:
                 lines.append(t("session_help.claude_model"))
             elif p == "codex":
                 lines.append(t("session_help.codex_single"))
-            else:
+            elif p == "gemini":
                 lines.append(t("session_help.gemini_single"))
                 lines.append(t("session_help.gemini_model"))
+            else:
+                lines.append(t("session_help.default_provider"))
         else:
             lines.append(t("session_help.default_provider"))
             if "claude" in providers:
@@ -997,6 +999,8 @@ class TelegramBot:
                 lines.append(t("session_help.codex_multi"))
             if "gemini" in providers:
                 lines.append(t("session_help.gemini_multi"))
+            if "kimi" in providers:
+                lines.append(t("session_help.kimi_multi"))
             lines.append(t("session_help.explicit"))
 
         lines += [
@@ -1048,7 +1052,7 @@ class TelegramBot:
                 provider_override, model_override = resolved[0], resolved[1] or None
                 prompt = rest
                 # If key was a provider name, check for optional model after it
-                if key in ("claude", "codex", "gemini"):
+                if key in ("claude", "codex", "gemini", "antigravity", "kimi"):
                     model_match = re.match(r"([a-zA-Z][a-zA-Z0-9_.-]*)\s+", prompt)
                     if model_match:
                         candidate = model_match.group(1).lower()
@@ -1091,9 +1095,13 @@ class TelegramBot:
                 ns = self._orch.get_named_session(chat_id, session_name)
                 provider = ns.provider if ns else (provider_override or self._orch.config.provider)
                 model = ns.model if ns else ""
-                provider_label = {"claude": "Claude", "codex": "Codex", "gemini": "Gemini"}.get(
-                    provider, provider
-                )
+                provider_label = {
+                    "claude": "Claude",
+                    "codex": "Codex",
+                    "gemini": "Gemini",
+                    "antigravity": "Antigravity",
+                    "kimi": "Kimi",
+                }.get(provider, provider)
                 model_info = f" ({model})" if model else ""
                 await send_rich(
                     self._bot,

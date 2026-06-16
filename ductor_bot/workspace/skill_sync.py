@@ -38,7 +38,7 @@ _SKIP_DIRS: frozenset[str] = frozenset(
 
 _SKILL_SYNC_INTERVAL = 30.0
 _MANAGED_MARKER = ".ductor_managed"
-_SYNCABLE_PROVIDERS: frozenset[str] = frozenset({"claude", "codex", "gemini"})
+_SYNCABLE_PROVIDERS: frozenset[str] = frozenset({"claude", "codex", "gemini", "kimi"})
 
 
 def _load_skill_sync_config(config_path: Path) -> tuple[bool, frozenset[str]]:
@@ -152,6 +152,10 @@ def _cli_skill_dirs(enabled_providers: frozenset[str] | None = None) -> dict[str
         gemini_home = Path.home() / ".gemini"
         if gemini_home.is_dir():
             dirs["gemini"] = gemini_home / "skills"
+    if enabled_providers is None or "kimi" in enabled_providers:
+        kimi_home = Path.home() / ".kimi"
+        if kimi_home.is_dir():
+            dirs["kimi"] = kimi_home / "skills"
     return dirs
 
 
@@ -389,8 +393,8 @@ def sync_skills(paths: DuctorPaths, *, docker_active: bool = False) -> None:
     for reg in registries.values():
         all_names.update(reg.keys())
 
-    # Priority order: ductor > claude > codex > gemini
-    priority = ("ductor", "claude", "codex", "gemini")
+    # Priority order: ductor > claude > codex > gemini > kimi
+    priority = ("ductor", "claude", "codex", "gemini", "kimi")
     for skill_name in sorted(all_names):
         canonical = _resolve_canonical(
             skill_name,

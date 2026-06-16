@@ -235,6 +235,7 @@ select_claude = "Выбери модель Claude:"
 select_gemini = "Выбери модель Gemini:"
 select_codex = "Выбери модель Codex:"
 select_antigravity = "Выбери модель Antigravity:"
+select_kimi = "Выбери модель Kimi:"
 no_codex = "Нет доступных моделей Codex."
 no_gemini = "Модели Gemini не обнаружены в локальных файлах CLI."
 thinking_level = "Уровень reasoning для {model}:"
@@ -412,6 +413,7 @@ gemini_model = "`/session @flash <промпт>` — конкретная мод
 claude_multi = "`/session @opus <промпт>` — Claude (opus)"
 codex_multi = "`/session @codex <промпт>` — Codex"
 gemini_multi = "`/session @flash <промпт>` — Gemini (flash)"
+kimi_multi = "`/session @kimi <prompt>` — Kimi"
 explicit = "`/session @provider model <промпт>` — явно"
 
 # -- Файловый браузер ----------------------------------------------------------

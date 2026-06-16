@@ -11,6 +11,7 @@ from ductor_bot.cli.auth import AuthStatus, check_all_auth
 from ductor_bot.config import (
     ANTIGRAVITY_MODELS_ORDERED,
     CLAUDE_MODELS_ORDERED,
+    DEFAULT_KIMI_MODEL,
     get_antigravity_models,
     get_gemini_models,
     update_config_file_async,
@@ -218,6 +219,8 @@ async def model_selector_start(
         buttons.append(Button(text="GEMINI", callback_data="ms:p:gemini"))
     if "antigravity" in authed:
         buttons.append(Button(text="ANTIGRAVITY", callback_data="ms:p:antigravity"))
+    if "kimi" in authed:
+        buttons.append(Button(text="KIMI", callback_data="ms:p:kimi"))
 
     provider_rows = [buttons[i : i + 2] for i in range(0, len(buttons), 2)]
     keyboard = ButtonGrid(rows=provider_rows)
@@ -427,6 +430,15 @@ async def _build_model_step(
             text=f"{header}\n\n{t('model.select_antigravity')}", buttons=keyboard
         )
 
+    if provider == "kimi":
+        rows = [
+            [Button(text=DEFAULT_KIMI_MODEL, callback_data=f"ms:m:{DEFAULT_KIMI_MODEL}")],
+            [Button(text="kimi-k2-0905-preview", callback_data="ms:m:kimi-k2-0905-preview")],
+            [Button(text=t("model.btn_back"), callback_data="ms:b:root")],
+        ]
+        keyboard = ButtonGrid(rows=rows)
+        return SelectorResponse(text=f"{header}\n\n{t('model.select_kimi')}", buttons=keyboard)
+
     # Use cache instead of live discovery
     codex_models = codex_cache.models if codex_cache else []
     if not codex_models:
@@ -455,7 +467,7 @@ async def _handle_model_selected(
     """Handle a model button press. Codex shows reasoning; other providers switch directly."""
     provider = orch.models.provider_for(model_id)
 
-    if provider in ("claude", "gemini", "antigravity"):
+    if provider in ("claude", "gemini", "antigravity", "kimi"):
         result = await switch_model(orch, key, model_id)
         return SelectorResponse(text=result)
 

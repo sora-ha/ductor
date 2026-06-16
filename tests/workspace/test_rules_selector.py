@@ -78,6 +78,21 @@ def test_variant_selection_both(mock_paths: DuctorPaths) -> None:
         assert selector.get_variant_suffix() == "all-clis"
 
 
+def test_variant_selection_kimi_only(mock_paths: DuctorPaths) -> None:
+    """Test variant selection when only Kimi is authenticated."""
+    auth = {
+        "claude": AuthResult(provider="claude", status=AuthStatus.NOT_FOUND),
+        "codex": AuthResult(provider="codex", status=AuthStatus.NOT_FOUND),
+        "gemini": AuthResult(provider="gemini", status=AuthStatus.NOT_FOUND),
+        "antigravity": AuthResult(provider="antigravity", status=AuthStatus.NOT_FOUND),
+        "kimi": AuthResult(provider="kimi", status=AuthStatus.AUTHENTICATED),
+    }
+
+    with patch("ductor_bot.cli.auth.check_all_auth", return_value=auth):
+        selector = RulesSelector(mock_paths)
+        assert selector.get_variant_suffix() == "kimi-only"
+
+
 def test_template_discovery(mock_paths: DuctorPaths) -> None:
     """Test automatic discovery of template directories."""
     auth = {
@@ -163,6 +178,27 @@ def test_deploy_both_with_both_files(mock_paths: DuctorPaths) -> None:
         assert "All CLIs Template" in claude_content
         assert "All CLIs Template" in agents_content
         assert claude_content == agents_content  # Same content
+
+
+def test_deploy_kimi_only_creates_kimi_md(mock_paths: DuctorPaths) -> None:
+    """Test that only KIMI.md is created when only Kimi is authenticated."""
+    auth = {
+        "claude": AuthResult(provider="claude", status=AuthStatus.NOT_FOUND),
+        "codex": AuthResult(provider="codex", status=AuthStatus.NOT_FOUND),
+        "gemini": AuthResult(provider="gemini", status=AuthStatus.NOT_FOUND),
+        "antigravity": AuthResult(provider="antigravity", status=AuthStatus.NOT_FOUND),
+        "kimi": AuthResult(provider="kimi", status=AuthStatus.AUTHENTICATED),
+    }
+
+    with patch("ductor_bot.cli.auth.check_all_auth", return_value=auth):
+        selector = RulesSelector(mock_paths)
+        selector.deploy_rules()
+
+        config_kimi = mock_paths.ductor_home / "config" / "KIMI.md"
+        assert config_kimi.exists()
+
+        config_claude = mock_paths.ductor_home / "config" / "CLAUDE.md"
+        assert not config_claude.exists()
 
 
 def test_deploy_all_directories(mock_paths: DuctorPaths) -> None:

@@ -43,7 +43,7 @@ CHANGES:
   --description "<text>"     Update metadata description
   --schedule "<cron-expr>"   Update execution schedule
   --timezone "<iana>"        Set per-job timezone override (e.g. 'Europe/Berlin')
-  --provider "<name>"        Set provider override ('claude', 'codex', 'gemini')
+  --provider "<name>"        Set provider override ('claude', 'codex', 'gemini', 'kimi')
   --model "<model-id>"       Set model override (e.g. 'opus', 'gpt-5.4')
   --reasoning-effort <lvl>   Set Codex thinking level (low, medium, high, xhigh)
   --cli-parameters "<json>"  Set extra CLI flags as JSON array
@@ -96,7 +96,7 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--timezone", help="IANA timezone for this job (e.g. 'Europe/Berlin')")
     parser.add_argument(
         "--provider",
-        choices=["claude", "codex", "gemini"],
+        choices=["claude", "codex", "gemini", "kimi"],
         help="Provider override for this job.",
     )
     parser.add_argument(

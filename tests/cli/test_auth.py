@@ -12,6 +12,7 @@ from ductor_bot.cli.auth import (
     check_claude_auth,
     check_codex_auth,
     check_gemini_auth,
+    check_kimi_auth,
     format_age,
     gemini_uses_api_key_mode,
 )
@@ -632,3 +633,57 @@ def test_antigravity_cli_logged_in_returns_false_on_probe_error(
     monkeypatch.setattr(subprocess, "run", _raise)
 
     assert _auth_mod._antigravity_cli_logged_in() is False
+
+
+def test_check_kimi_auth_not_found(monkeypatch: pytest.MonkeyPatch) -> None:
+    import ductor_bot.cli.auth as _auth_mod
+
+    monkeypatch.setattr(_auth_mod, "which", lambda _cmd: None)
+
+    result = check_kimi_auth()
+
+    assert result.provider == "kimi"
+    assert result.status == AuthStatus.NOT_FOUND
+
+
+def test_check_kimi_auth_with_env_key(monkeypatch: pytest.MonkeyPatch) -> None:
+    import ductor_bot.cli.auth as _auth_mod
+
+    monkeypatch.setattr(_auth_mod, "which", lambda _cmd: "/usr/bin/kimi")
+    monkeypatch.setenv("KIMI_API_KEY", "sk-kimi-test")
+
+    result = check_kimi_auth()
+
+    assert result.provider == "kimi"
+    assert result.status == AuthStatus.AUTHENTICATED
+
+
+def test_check_kimi_auth_installed_without_key(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    import ductor_bot.cli.auth as _auth_mod
+
+    monkeypatch.setattr(_auth_mod, "which", lambda _cmd: "/usr/bin/kimi")
+    monkeypatch.delenv("KIMI_API_KEY", raising=False)
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
+
+    result = check_kimi_auth()
+
+    assert result.provider == "kimi"
+    assert result.status == AuthStatus.INSTALLED
+
+
+def test_check_kimi_auth_with_credentials_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    import ductor_bot.cli.auth as _auth_mod
+
+    monkeypatch.setattr(_auth_mod, "which", lambda _cmd: "/usr/bin/kimi")
+    monkeypatch.delenv("KIMI_API_KEY", raising=False)
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
+
+    creds_dir = tmp_path / ".kimi" / "credentials"
+    creds_dir.mkdir(parents=True)
+    (creds_dir / "default.json").write_text('{"token": "x"}', encoding="utf-8")
+
+    result = check_kimi_auth()
+
+    assert result.provider == "kimi"
+    assert result.status == AuthStatus.AUTHENTICATED
+    assert result.auth_file == creds_dir / "default.json"

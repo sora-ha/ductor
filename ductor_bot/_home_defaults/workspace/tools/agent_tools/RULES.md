@@ -50,7 +50,8 @@ When creating a sub-agent:
    - Gemini: `gemini-2.5-pro`, `gemini-2.5-flash` (check `config/gemini_models.json`)
    - Antigravity: prefer `antigravity-default`; cached display names may pass
      through, but `agy` model selection is not reliable
-4. Provider is `claude`, `openai`/`codex`, `gemini`, or `antigravity`
+   - Kimi: `kimi-code/kimi-for-coding`, `kimi-k2-0905-preview`
+4. Provider is `claude`, `openai`/`codex`, `gemini`, `antigravity`, or `kimi`
 5. The workspace is created automatically under `agents/<name>/`
 6. The sub-agent starts automatically within seconds (FileWatcher)
 

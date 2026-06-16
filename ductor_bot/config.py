@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 logger = logging.getLogger(__name__)
 NULLISH_TEXT_VALUES: frozenset[str] = frozenset({"null", "none"})
 DEFAULT_EMPTY_GEMINI_API_KEY: str = "null"
+DEFAULT_KIMI_MODEL: str = "kimi-code/kimi-for-coding"
 
 # Intentional bind-all: the API is designed for private-network use (Tailscale).
 # Public exposure is gated by ``allow_public`` + a prominent warning at startup.
@@ -230,6 +231,7 @@ class CLIParametersConfig(BaseModel):
     codex: list[str] = Field(default_factory=list)
     gemini: list[str] = Field(default_factory=list)
     antigravity: list[str] = Field(default_factory=list)
+    kimi: list[str] = Field(default_factory=list)
 
 
 class MatrixConfig(BaseModel):
@@ -404,6 +406,7 @@ class SkillSyncProviders(BaseModel):
     claude: bool = True
     codex: bool = True
     gemini: bool = True
+    kimi: bool = True
 
 
 class SkillsConfig(BaseModel):
@@ -602,6 +605,7 @@ ANTIGRAVITY_MODELS: frozenset[str] = frozenset(ANTIGRAVITY_MODELS_ORDERED)
 
 _runtime_gemini: list[frozenset[str]] = [frozenset()]
 _runtime_antigravity: list[frozenset[str]] = [frozenset()]
+_runtime_kimi: list[frozenset[str]] = [frozenset()]
 
 
 class ModelRegistry:
@@ -634,6 +638,8 @@ class ModelRegistry:
             or model_id.startswith("antigravity-")
         ):
             return "antigravity"
+        if model_id in _runtime_kimi[0] or model_id.startswith("kimi-"):
+            return "kimi"
         return "codex"
 
 
@@ -675,3 +681,23 @@ def set_antigravity_models(models: frozenset[str]) -> None:
 def reset_antigravity_models() -> None:
     """Clear runtime Antigravity models. For test teardown only."""
     _runtime_antigravity[0] = frozenset()
+
+
+def get_kimi_models() -> frozenset[str]:
+    """Return dynamically discovered Kimi models (may be empty)."""
+    return _runtime_kimi[0]
+
+
+def set_kimi_models(models: frozenset[str]) -> None:
+    """Set runtime Kimi models discovered externally.
+
+    Refuses to overwrite with an empty set to prevent cache wipe.
+    """
+    if not models:
+        return
+    _runtime_kimi[0] = models
+
+
+def reset_kimi_models() -> None:
+    """Clear runtime Kimi models. For test teardown only."""
+    _runtime_kimi[0] = frozenset()

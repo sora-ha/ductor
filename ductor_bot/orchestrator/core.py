@@ -151,6 +151,7 @@ class Orchestrator:
                 codex_cli_parameters=tuple(config.cli_parameters.codex),
                 gemini_cli_parameters=tuple(config.cli_parameters.gemini),
                 antigravity_cli_parameters=tuple(config.cli_parameters.antigravity),
+                kimi_cli_parameters=tuple(config.cli_parameters.kimi),
                 agent_name=agent_name,
                 interagent_port=interagent_port,
                 transcribe_command=config.transcription.audio_command,
@@ -719,6 +720,7 @@ class Orchestrator:
                     codex_cli_parameters=tuple(config.cli_parameters.codex),
                     gemini_cli_parameters=tuple(config.cli_parameters.gemini),
                     antigravity_cli_parameters=tuple(config.cli_parameters.antigravity),
+                    kimi_cli_parameters=tuple(config.cli_parameters.kimi),
                     transcribe_command=config.transcription.audio_command,
                     video_transcribe_command=config.transcription.video_command,
                 )

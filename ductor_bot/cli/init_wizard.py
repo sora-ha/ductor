@@ -25,6 +25,7 @@ from ductor_bot.cli.auth import (
     check_claude_auth,
     check_codex_auth,
     check_gemini_auth,
+    check_kimi_auth,
 )
 from ductor_bot.config import DEFAULT_EMPTY_GEMINI_API_KEY, AgentConfig, deep_merge_config
 from ductor_bot.i18n import t_rich
@@ -112,6 +113,7 @@ def _check_clis(console: Console) -> None:
         ("codex", check_codex_auth),
         ("gemini", check_gemini_auth),
         ("antigravity", check_antigravity_auth),
+        ("kimi", check_kimi_auth),
     )
     for name, fn in probes:
         try:

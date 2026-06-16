@@ -27,6 +27,11 @@ def create_cli(config: CLIConfig) -> BaseCLI:
 
         return AntigravityCLI(config)
 
+    if config.provider == "kimi":
+        from ductor_bot.cli.kimi_provider import KimiCLI
+
+        return KimiCLI(config)
+
     from ductor_bot.cli.claude_provider import ClaudeCodeCLI
 
     return ClaudeCodeCLI(config)

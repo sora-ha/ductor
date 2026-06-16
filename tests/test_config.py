@@ -167,6 +167,12 @@ def test_registry_provider_for_antigravity() -> None:
     assert reg.provider_for("antigravity-default") == "antigravity"
 
 
+def test_registry_provider_for_kimi() -> None:
+    reg = ModelRegistry()
+    assert reg.provider_for("kimi-code/kimi-for-coding") == "kimi"
+    assert reg.provider_for("kimi-k2-0905-preview") == "kimi"
+
+
 def test_streaming_config_fields() -> None:
     s = StreamingConfig(enabled=False, min_chars=100)
     assert s.enabled is False

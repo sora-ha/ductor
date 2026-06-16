@@ -1,4 +1,4 @@
-# Cron Tools (Claude, Codex & Gemini)
+# Cron Tools (Claude, Codex, Gemini & Kimi)
 
 Scripts for creating, editing, listing, and removing scheduled jobs.
 
@@ -10,6 +10,7 @@ Scripts for creating, editing, listing, and removing scheduled jobs.
    - `claude` - Standard Claude models
    - `codex` - OpenAI Codex models with extended thinking
    - `gemini` - Google Gemini models
+   - `kimi` - Moonshot Kimi models
 
 2. **Which model?**
    - **If Claude:**
@@ -31,6 +32,9 @@ Scripts for creating, editing, listing, and removing scheduled jobs.
      - `gemini-3-pro-preview` - Next-gen preview
      - `gemini-3-flash-preview` - Next-gen fast preview
      - `gemini-3.1-pro-preview` - Latest preview
+   - **If Kimi:**
+     - `kimi-code/kimi-for-coding` - Balanced coding model (recommended)
+     - `kimi-k2-0905-preview` - K2 series preview
 
 3. **If Codex: Which thinking level?**
    - `low` - Fast, surface-level reasoning
@@ -106,10 +110,19 @@ python3 tools/cron_tools/cron_add.py \
   --schedule "0 9 * * *" \
   --provider gemini \
   --model gemini-2.5-pro
+
+# Kimi example:
+python3 tools/cron_tools/cron_add.py \
+  --name "job-name" \
+  --title "Job Title" \
+  --description "What this job does" \
+  --schedule "0 9 * * *" \
+  --provider kimi \
+  --model kimi-code/kimi-for-coding
 ```
 
 **Available parameters:**
-- `--provider` - CLI provider: `claude`, `codex`, or `gemini` (optional, uses global config if omitted)
+- `--provider` - CLI provider: `claude`, `codex`, `gemini`, or `kimi` (optional, uses global config if omitted)
 - `--model` - Model choice (optional, uses global config if omitted)
 - `--reasoning-effort` - Codex only: thinking level (optional, defaults to `medium`)
 - `--cli-parameters` - Advanced: JSON array of CLI flags (only if user explicitly requests)
@@ -144,7 +157,7 @@ Use `cron_edit.py` for in-place updates (title/description/schedule/timezone/pro
 
 Each job owns `cron_tasks/<name>/TASK_DESCRIPTION.md`.
 Edit that file to change task behavior.
-Do not edit task-folder `CLAUDE.md`, `AGENTS.md`, or `GEMINI.md` manually.
+Do not edit task-folder `CLAUDE.md`, `AGENTS.md`, `GEMINI.md`, or `KIMI.md` manually.
 
 ## After Cron Setup
 

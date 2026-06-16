@@ -13,13 +13,13 @@ from ductor_bot.workspace.paths import DuctorPaths
 logger = logging.getLogger(__name__)
 
 # Provider rule files — created per task only for authenticated providers.
-_RULE_FILENAMES = ("CLAUDE.md", "AGENTS.md", "GEMINI.md")
+_RULE_FILENAMES = ("CLAUDE.md", "AGENTS.md", "GEMINI.md", "KIMI.md")
 
 
 def _detect_rule_filenames(cron_tasks_dir: Path) -> list[str]:
     """Determine which rule files to create based on parent directory contents.
 
-    Checks which provider rule files (CLAUDE.md, AGENTS.md, GEMINI.md) exist
+    Checks which provider rule files (CLAUDE.md, AGENTS.md, GEMINI.md, KIMI.md) exist
     in the ``cron_tasks/`` root — these are deployed by ``RulesSelector``
     based on CLI authentication status.  New task folders mirror only the
     providers that are currently authenticated.

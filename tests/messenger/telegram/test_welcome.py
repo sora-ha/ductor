@@ -90,6 +90,22 @@ class TestBuildWelcomeText:
         assert "Gemini authenticated" in text
         assert "gemini-2.5-pro" in text
 
+    def test_only_kimi_authenticated(self) -> None:
+        from ductor_bot.messenger.telegram.welcome import build_welcome_text
+
+        auth_results = {
+            "claude": _auth("claude", authenticated=False),
+            "codex": _auth("codex", authenticated=False),
+            "gemini": _auth("gemini", authenticated=False),
+            "antigravity": _auth("antigravity", authenticated=False),
+            "kimi": _auth("kimi"),
+        }
+        cfg = _config(model="kimi-code/kimi-for-coding", provider="kimi")
+        text = build_welcome_text("Kimi", auth_results, cfg)
+
+        assert "Kimi authenticated" in text
+        assert "kimi-code/kimi-for-coding" in text
+
     def test_no_providers_authenticated(self) -> None:
         from ductor_bot.messenger.telegram.welcome import build_welcome_text
 

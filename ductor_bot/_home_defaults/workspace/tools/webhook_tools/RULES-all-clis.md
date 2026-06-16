@@ -10,11 +10,13 @@ Scripts for managing incoming HTTP webhook endpoints.
    - `claude` - Standard Claude models
    - `codex` - OpenAI Codex models with extended thinking
    - `gemini` - Google Gemini models
+   - `kimi` - Moonshot Kimi models
 
 2. **Which model?**
    - **If Claude:** `haiku`, `sonnet` (recommended), `sonnet[1m]`, `opus`, `opus[1m]`, `fable`
    - **If Codex:** `gpt-5.2-codex` (recommended), `gpt-5.3-codex`, `gpt-5.1-codex-max`, `gpt-5.2`, `gpt-5.1-codex-mini`
    - **If Gemini:** `gemini-2.5-pro` (recommended), `gemini-2.5-flash`, `gemini-2.5-flash-lite`, `gemini-3-pro-preview`, `gemini-3-flash-preview`, `gemini-3.1-pro-preview`
+   - **If Kimi:** `kimi-code/kimi-for-coding` (recommended), `kimi-k2-0905-preview`
 
 3. **If Codex: Which thinking level?**
    - `low`, `medium` (default), `high`, `xhigh`

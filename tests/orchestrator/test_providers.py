@@ -6,7 +6,13 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from ductor_bot.config import AgentConfig, reset_gemini_models, set_gemini_models
+from ductor_bot.config import (
+    AgentConfig,
+    DEFAULT_KIMI_MODEL,
+    reset_gemini_models,
+    reset_kimi_models,
+    set_gemini_models,
+)
 from ductor_bot.orchestrator.providers import ProviderManager
 
 
@@ -15,6 +21,13 @@ def _reset_gemini():
     reset_gemini_models()
     yield
     reset_gemini_models()
+
+
+@pytest.fixture(autouse=True)
+def _reset_kimi():
+    reset_kimi_models()
+    yield
+    reset_kimi_models()
 
 
 def _pm(
@@ -50,6 +63,12 @@ class TestResolveRuntimeTarget:
         model, provider = pm.resolve_runtime_target("auto")
         assert model == "auto"
         assert provider == "gemini"
+
+    def test_kimi_model(self) -> None:
+        pm = _pm()
+        model, provider = pm.resolve_runtime_target("kimi-code/kimi-for-coding")
+        assert model == "kimi-code/kimi-for-coding"
+        assert provider == "kimi"
 
     def test_codex_model(self) -> None:
         pm = _pm()
@@ -90,6 +109,13 @@ class TestResolveSessionDirective:
         assert result is not None
         assert result[0] == "codex"
 
+    def test_provider_name_kimi(self) -> None:
+        pm = _pm()
+        result = pm.resolve_session_directive("kimi")
+        assert result is not None
+        assert result[0] == "kimi"
+        assert result[1] == DEFAULT_KIMI_MODEL
+
     def test_known_model(self) -> None:
         pm = _pm()
         result = pm.resolve_session_directive("opus")
@@ -127,6 +153,10 @@ class TestIsKnownModel:
         set_gemini_models(frozenset({"gemini-2.5-pro"}))
         pm = _pm()
         assert pm.is_known_model("gemini-2.5-pro") is True
+
+    def test_kimi_auto_alias(self) -> None:
+        pm = _pm()
+        assert pm.is_known_model("kimi-auto") is True
 
     def test_unknown_model(self) -> None:
         pm = _pm()
@@ -174,6 +204,10 @@ class TestDefaultModelForProvider:
     def test_gemini(self) -> None:
         pm = _pm()
         assert pm.default_model_for_provider("gemini") == ""
+
+    def test_kimi(self) -> None:
+        pm = _pm()
+        assert pm.default_model_for_provider("kimi") == DEFAULT_KIMI_MODEL
 
     def test_unknown_provider(self) -> None:
         pm = _pm()
@@ -251,6 +285,10 @@ class TestActiveProviderName:
         pm = _pm(model="o3-mini", provider="codex")
         assert pm.active_provider_name == "Codex"
 
+    def test_kimi(self) -> None:
+        pm = _pm(model="kimi-code/kimi-for-coding", provider="kimi")
+        assert pm.active_provider_name == "Kimi"
+
 
 # ---------------------------------------------------------------------------
 # on_gemini_models_refresh
@@ -271,3 +309,17 @@ class TestOnGeminiModelsRefresh:
         pm._gemini_api_key_mode = True
         pm.on_gemini_models_refresh(("gemini-2.5-pro",))
         assert pm._gemini_api_key_mode is None
+
+
+# ---------------------------------------------------------------------------
+# on_kimi_models_refresh
+# ---------------------------------------------------------------------------
+
+
+class TestOnKimiModelsRefresh:
+    def test_updates_known_model_ids(self) -> None:
+        pm = _pm()
+        assert not pm.is_known_model("kimi-k2-0905-preview")
+
+        pm.on_kimi_models_refresh(("kimi-k2-0905-preview",))
+        assert pm.is_known_model("kimi-k2-0905-preview")
