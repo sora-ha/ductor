@@ -35,13 +35,14 @@ API config persistence note:
 
 ## External API Secrets (`~/.ductor/.env`)
 
-User-defined environment secrets for external APIs (e.g. `PPLX_API_KEY`, `DEEPSEEK_API_KEY`).
+User-defined environment secrets for external APIs (e.g. `PPLX_API_KEY`, `DEEPSEEK_API_KEY`, `KIMI_API_KEY`).
 
 Standard dotenv syntax:
 
 ```env
 PPLX_API_KEY=sk-xxx
 DEEPSEEK_API_KEY=sk-yyy
+KIMI_API_KEY=sk-xxx
 export MY_VAR="quoted value"
 ```
 
@@ -147,6 +148,8 @@ Notes:
 | `codex` | `list[str]` | `[]` | Extra args appended to Codex CLI command |
 | `gemini` | `list[str]` | `[]` | Extra args appended to Gemini CLI command |
 | `antigravity` | `list[str]` | `[]` | Extra args appended to Antigravity (`agy`) CLI command |
+| `kimi` | `list[str]` | `[]` | Extra args appended to Kimi (`kimi`) CLI command |
+| `cursor` | `list[str]` | `[]` | Extra args appended to Cursor (`cursor agent`) CLI command |
 
 Used by `CLIServiceConfig` for main-chat calls.
 
@@ -219,6 +222,7 @@ Cron-only field:
 Behavior notes:
 
 - missing execution fields fall back to global config via `resolve_cli_config()`,
+- `provider` override supports `claude`, `codex`, `gemini`, `kimi`, and `cursor` (not `antigravity`),
 - `dependency` is global across cron + webhook `cron_task` runs (shared `DependencyQueue`),
 - quiet-hour checks run only when per-task quiet fields are set (no fallback to global heartbeat quiet settings).
 
@@ -496,6 +500,8 @@ Runtime note (`Orchestrator._start_api_server` + `ApiServer._authenticate`):
 | `claude` | `bool` | `true` | Include `~/.claude/skills` in cross-tool sync |
 | `codex` | `bool` | `true` | Include `~/.codex/skills` (or `$CODEX_HOME/skills`) in cross-tool sync |
 | `gemini` | `bool` | `true` | Include `~/.gemini/skills` in cross-tool sync |
+| `kimi` | `bool` | `true` | Include `~/.kimi/skills` in cross-tool sync |
+| `cursor` | `bool` | `true` | Include `~/.cursor/skills` in cross-tool sync |
 
 Toggles are read live from `config.json` on each skill-sync tick (independent of `ConfigReloader`), so changes take effect within one sync interval without restart. A disabled provider is dropped from the sync, so its skill dir is neither linked into nor used as a source; existing ductor-created links are not actively removed (cleared on shutdown cleanup or manually).
 
@@ -542,10 +548,14 @@ Restart classification is computed from `AgentConfig` top-level schema fields.
   The Telegram `/model` selector currently exposes only `antigravity-default`
   because `agy` model selection is not reliable there; discovered display names
   are still known to directives and API provider metadata.
+- Kimi default model is `kimi-code/kimi-for-coding`; runtime Kimi models are held in-memory via `get_kimi_models()` / `set_kimi_models()` (no persisted cache file yet).
+- Cursor default model is `auto`; runtime Cursor models are held in-memory via `get_cursor_models()` / `set_cursor_models()` (no persisted cache file yet).
 - Provider resolution (`provider_for(model_id)`):
   - Claude when in `CLAUDE_MODELS` or when model looks like `claude-*`,
   - Gemini when in aliases/discovered set or when model looks like `gemini-*`/`auto-gemini-*`,
   - Antigravity when in the built-in/discovered set or when model looks like `antigravity-*`,
+  - Kimi when in the runtime Kimi set or when model looks like `kimi-*`,
+  - Cursor when `auto`, in the runtime Cursor set, or when model looks like `composer-*`,
   - otherwise Codex.
 
 ## Timezone Resolution
@@ -608,6 +618,28 @@ Behavior:
 - refresh callback updates runtime Antigravity model registry (`set_antigravity_models(...)`) used by directives and API provider metadata.
 - the Telegram `/model` selector intentionally offers only `antigravity-default`
   and displays the current `agy` model-selection limitation.
+
+## Kimi Models
+
+Default model: `kimi-code/kimi-for-coding`.
+
+Behavior:
+
+- runtime registry is in-memory only (`get_kimi_models()` / `set_kimi_models()`),
+- the Telegram `/model` selector offers `kimi-code/kimi-for-coding` and `kimi-k2-0905-preview`,
+- auth is detected via `kimi` on `PATH`, `KIMI_API_KEY`, or credentials under `~/.kimi/` (override share dir with `KIMI_SHARE_DIR`),
+- workspace init deploys `KIMI.md` when Kimi is authenticated.
+
+## Cursor Models
+
+Default model: `auto`.
+
+Behavior:
+
+- runtime registry is in-memory only (`get_cursor_models()` / `set_cursor_models()`),
+- the Telegram `/model` selector uses discovered Cursor models when populated, otherwise `auto` and `composer-2.5-fast`,
+- auth is detected via `cursor` on `PATH` and a successful `cursor agent status` / `cursor agent whoami` login check,
+- workspace init deploys `CURSOR.md` when Cursor is authenticated.
 
 ## `agents.json` (Multi-Agent Registry)
 

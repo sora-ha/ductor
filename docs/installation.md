@@ -8,6 +8,9 @@
    - Claude Code CLI: `npm install -g @anthropic-ai/claude-code && claude auth`
    - Codex CLI: `npm install -g @openai/codex && codex auth`
    - Gemini CLI: `npm install -g @google/gemini-cli` and authenticate in `gemini`
+   - Antigravity CLI: install `agy` and authenticate (onboarding checks `agy models`)
+   - Kimi CLI: `uv tool install --python 3.13 kimi-cli`, then set `KIMI_API_KEY` or authenticate via `kimi` (credentials under `~/.kimi/`)
+   - Cursor CLI: install from [cursor.com](https://cursor.com/), then log in with `cursor agent`
 4. One of these messaging transports:
    - **Telegram**: Bot token from [@BotFather](https://t.me/BotFather) + user ID from [@userinfobot](https://t.me/userinfobot)
    - **Matrix**: install Matrix support first (`ductor install matrix` or `pip install \"ductor[matrix]\"`), then provide homeserver URL, user ID, and password/access token
@@ -36,6 +39,14 @@ python -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
 ```
 
+Or with `uv`:
+
+```bash
+git clone https://github.com/PleasePrompto/ductor.git
+cd ductor
+uv sync --extra dev
+```
+
 ## First run
 
 ```bash
@@ -44,7 +55,7 @@ ductor
 
 On first run, onboarding does:
 
-- checks Claude/Codex/Gemini/Antigravity auth status,
+- checks Claude/Codex/Gemini/Antigravity/Kimi/Cursor auth status,
 - asks which transport to use (Telegram or Matrix),
 - collects transport credentials,
 - asks timezone,
@@ -280,6 +291,10 @@ claude auth
 codex auth
 # or
 # authenticate in gemini CLI
+# or
+# set KIMI_API_KEY / authenticate via kimi CLI
+# or
+cursor agent   # log in to Cursor CLI
 ```
 
 ### Docker enabled but not running

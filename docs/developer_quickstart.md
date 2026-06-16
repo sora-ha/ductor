@@ -10,9 +10,15 @@ source .venv/bin/activate
 pip install -e ".[dev]"
 ```
 
+Or with `uv` (uses `uv.lock`):
+
+```bash
+uv sync --extra dev
+```
+
 Optional for full runtime validation:
 
-- install/auth at least one provider CLI (`claude`, `codex`, `gemini`, `agy`)
+- install/auth at least one provider CLI (`claude`, `codex`, `gemini`, `agy`, `kimi`, `cursor`)
 - set up a messaging transport:
   - **Telegram**: bot token from @BotFather + user ID (`allowed_user_ids`)
   - **Matrix**: account on any homeserver (homeserver URL, user ID, password, `allowed_users`)
