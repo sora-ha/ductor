@@ -532,37 +532,47 @@ def _kimi_share_dir() -> Path:
 
 
 def _kimi_auth_source() -> tuple[Path | None, datetime | None]:
-    share_dir = _kimi_share_dir()
-    credentials_dir = share_dir / "credentials"
-    try:
-        if credentials_dir.is_dir():
-            for entry in sorted(credentials_dir.iterdir()):
-                if _is_nonempty_file(entry):
-                    return entry, datetime.fromtimestamp(entry.stat().st_mtime, tz=UTC)
-    except OSError:
-        return None, None
+    # Kimi Code CLI stores OAuth/session credentials under its own share dirs.
+    # The legacy Moonshot CLI used ~/.kimi/{credentials,config.toml}.
+    share_dirs = [
+        _kimi_share_dir(),
+        Path.home() / ".kimi-code",
+        Path.home() / ".kimi-cli",
+    ]
+    for share_dir in share_dirs:
+        credentials_dir = share_dir / "credentials"
+        try:
+            if credentials_dir.is_dir():
+                for entry in sorted(credentials_dir.iterdir()):
+                    if _is_nonempty_file(entry):
+                        return entry, datetime.fromtimestamp(entry.stat().st_mtime, tz=UTC)
+        except OSError:
+            continue
 
-    config_path = share_dir / "config.toml"
-    if not config_path.is_file():
-        return None, None
-    try:
-        text = config_path.read_text(encoding="utf-8")
-    except OSError:
-        return None, None
+    for share_dir in share_dirs:
+        config_path = share_dir / "config.toml"
+        if not config_path.is_file():
+            continue
+        try:
+            text = config_path.read_text(encoding="utf-8")
+        except OSError:
+            continue
 
-    match = _KIMI_API_KEY_TOML_RE.search(text)
-    if not match:
-        return None, None
+        match = _KIMI_API_KEY_TOML_RE.search(text)
+        if not match:
+            continue
 
-    raw = match.group("dq") or match.group("sq") or match.group("bare") or ""
-    value = _normalize_key_like_value(raw)
-    if not value:
-        return None, None
-    try:
-        mtime = datetime.fromtimestamp(config_path.stat().st_mtime, tz=UTC)
-    except OSError:
-        return None, None
-    return config_path, mtime
+        raw = match.group("dq") or match.group("sq") or match.group("bare") or ""
+        value = _normalize_key_like_value(raw)
+        if not value:
+            continue
+        try:
+            mtime = datetime.fromtimestamp(config_path.stat().st_mtime, tz=UTC)
+        except OSError:
+            continue
+        return config_path, mtime
+
+    return None, None
 
 
 _CHECKERS: dict[str, Callable[[], AuthResult]] = {

@@ -690,6 +690,23 @@ def test_check_kimi_auth_with_credentials_file(tmp_path: Path, monkeypatch: pyte
     assert result.auth_file == creds_dir / "default.json"
 
 
+def test_check_kimi_auth_with_kimi_code_credentials(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    import ductor_bot.cli.auth as _auth_mod
+
+    monkeypatch.setattr(_auth_mod, "which", lambda _cmd: "/usr/bin/kimi")
+    monkeypatch.delenv("KIMI_API_KEY", raising=False)
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
+
+    creds_dir = tmp_path / ".kimi-code" / "credentials"
+    creds_dir.mkdir(parents=True)
+    (creds_dir / "kimi-code.json").write_text('{"token": "x"}', encoding="utf-8")
+
+    result = check_kimi_auth()
+
+    assert result.provider == "kimi"
+    assert result.status == AuthStatus.AUTHENTICATED
+    assert result.auth_file == creds_dir / "kimi-code.json"
+
 
 # -- Cursor auth --
 

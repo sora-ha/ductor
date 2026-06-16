@@ -39,7 +39,8 @@ def test_build_command_has_stream_json(monkeypatch: pytest.MonkeyPatch) -> None:
     cli = _make_cli(monkeypatch)
     cmd, sid = cli._build_command("hello", resume_session=None, continue_session=False)
     assert cmd[0] == "/usr/bin/kimi"
-    assert "--print" in cmd
+    assert "--prompt" in cmd
+    assert "--print" not in cmd
     assert "--output-format" in cmd
     fmt_idx = cmd.index("--output-format")
     assert cmd[fmt_idx + 1] == "stream-json"

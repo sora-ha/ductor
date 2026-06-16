@@ -244,7 +244,7 @@ def _build_kimi_cmd(exec_config: TaskExecutionConfig, prompt: str) -> OneShotCom
     cli = which("kimi")
     if not cli:
         return None
-    cmd = [cli, "--print", "--output-format", "stream-json"]
+    cmd = [cli, "--output-format", "stream-json"]
     if exec_config.model:
         cmd += ["--model", exec_config.model]
     if exec_config.permission_mode == "bypassPermissions":
