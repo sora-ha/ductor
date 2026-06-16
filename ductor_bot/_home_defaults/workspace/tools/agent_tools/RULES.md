@@ -94,7 +94,7 @@ python3 tools/agent_tools/create_agent.py \
 | Flag | Required | Description |
 |------|----------|-------------|
 | `--transport matrix` | Yes* | Selects Matrix transport (*auto-detected if `--homeserver` present) |
-| `--homeserver` | Yes | Homeserver URL (must be HTTPS) |
+| `--homeserver` | Yes | Homeserver URL (HTTP or HTTPS) |
 | `--user-id` | Yes | Bot's Matrix user ID (`@localpart:domain`) |
 | `--password` | No | Account password for initial login (token saved after first login) |
 | `--allowed-users` | No | Comma-separated Matrix user IDs to allow (empty = all users) |

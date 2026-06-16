@@ -78,7 +78,7 @@ body = """\
   Es el servidor donde vive la cuenta de tu bot.\n
 [dim]Ejemplo: https://matrix.example.com[/dim]"""
 prompt = "URL del homeserver:"
-error = "[red]Debe ser una URL HTTPS (p. ej. https://matrix.example.com)[/red]"
+error = "[red]Debe ser una URL HTTP o HTTPS (p. ej. https://matrix.example.com)[/red]"
 
 [matrix.user_id]
 title = "[bold]ID de usuario del bot en Matrix[/bold]"

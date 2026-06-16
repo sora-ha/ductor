@@ -78,7 +78,7 @@ body = """\
   Ini adalah server tempat akun bot Anda berada.\n
 [dim]Contoh: https://matrix.example.com[/dim]"""
 prompt = "URL Homeserver:"
-error = "[red]Harus berupa URL HTTPS (mis. https://matrix.example.com)[/red]"
+error = "[red]Harus berupa URL HTTP atau HTTPS (mis. https://matrix.example.com)[/red]"
 
 [matrix.user_id]
 title = "[bold]ID Pengguna Bot Matrix[/bold]"

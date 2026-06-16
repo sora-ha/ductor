@@ -153,7 +153,9 @@ def main() -> None:
     )
 
     # Matrix-specific
-    parser.add_argument("--homeserver", default=None, help="Matrix homeserver URL (https://...)")
+    parser.add_argument(
+        "--homeserver", default=None, help="Matrix homeserver URL (http:// or https://)"
+    )
     parser.add_argument("--user-id", default=None, help="Matrix bot user ID (@bot:server)")
     parser.add_argument(
         "--password",
@@ -257,8 +259,8 @@ def main() -> None:
         if not args.homeserver:
             print("Error: --homeserver is required for Matrix agents.", file=sys.stderr)
             sys.exit(1)
-        if not args.homeserver.startswith("https://"):
-            print("Error: --homeserver must be an HTTPS URL.", file=sys.stderr)
+        if not args.homeserver.startswith(("https://", "http://")):
+            print("Error: --homeserver must be an HTTP or HTTPS URL.", file=sys.stderr)
             sys.exit(1)
         if not args.user_id:
             print("Error: --user-id is required for Matrix agents.", file=sys.stderr)
