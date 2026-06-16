@@ -14,12 +14,14 @@ if TYPE_CHECKING:
 from ductor_bot.config import (
     _GEMINI_ALIASES,
     CLAUDE_MODELS,
+    DEFAULT_CURSOR_MODEL,
     DEFAULT_KIMI_MODEL,
+    get_cursor_models,
     get_gemini_models,
     get_kimi_models,
 )
 
-_TASK_PROVIDERS: frozenset[str] = frozenset({"claude", "codex", "gemini", "kimi"})
+_TASK_PROVIDERS: frozenset[str] = frozenset({"claude", "codex", "gemini", "kimi", "cursor"})
 
 
 def _looks_like_gemini_model(model: str) -> bool:
@@ -53,6 +55,22 @@ def _validate_kimi_model(model: str) -> None:
         msg = (
             f"Invalid Kimi model: {model}. Must use a Kimi model ID "
             "(e.g. kimi-code/kimi-for-coding)."
+        )
+        raise DuctorError(msg)
+
+
+def _looks_like_cursor_model(model: str) -> bool:
+    return model == DEFAULT_CURSOR_MODEL or model.startswith("composer-")
+
+
+def _validate_cursor_model(model: str) -> None:
+    cursor_models = get_cursor_models()
+    if model in cursor_models:
+        return
+    if not cursor_models and not _looks_like_cursor_model(model):
+        msg = (
+            f"Invalid Cursor model: {model}. Must use a Cursor model ID "
+            "(e.g. auto, composer-2.5-fast)."
         )
         raise DuctorError(msg)
 
@@ -134,6 +152,8 @@ def resolve_cli_config(
         _validate_gemini_model(model)
     elif provider == "kimi":
         _validate_kimi_model(model)
+    elif provider == "cursor":
+        _validate_cursor_model(model)
     else:  # codex
         if codex_cache is None:
             msg = "Codex cache is required for Codex model validation"

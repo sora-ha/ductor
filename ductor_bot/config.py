@@ -13,6 +13,7 @@ logger = logging.getLogger(__name__)
 NULLISH_TEXT_VALUES: frozenset[str] = frozenset({"null", "none"})
 DEFAULT_EMPTY_GEMINI_API_KEY: str = "null"
 DEFAULT_KIMI_MODEL: str = "kimi-code/kimi-for-coding"
+DEFAULT_CURSOR_MODEL: str = "auto"
 
 # Intentional bind-all: the API is designed for private-network use (Tailscale).
 # Public exposure is gated by ``allow_public`` + a prominent warning at startup.
@@ -232,6 +233,7 @@ class CLIParametersConfig(BaseModel):
     gemini: list[str] = Field(default_factory=list)
     antigravity: list[str] = Field(default_factory=list)
     kimi: list[str] = Field(default_factory=list)
+    cursor: list[str] = Field(default_factory=list)
 
 
 class MatrixConfig(BaseModel):
@@ -407,6 +409,7 @@ class SkillSyncProviders(BaseModel):
     codex: bool = True
     gemini: bool = True
     kimi: bool = True
+    cursor: bool = True
 
 
 class SkillsConfig(BaseModel):
@@ -606,6 +609,7 @@ ANTIGRAVITY_MODELS: frozenset[str] = frozenset(ANTIGRAVITY_MODELS_ORDERED)
 _runtime_gemini: list[frozenset[str]] = [frozenset()]
 _runtime_antigravity: list[frozenset[str]] = [frozenset()]
 _runtime_kimi: list[frozenset[str]] = [frozenset()]
+_runtime_cursor: list[frozenset[str]] = [frozenset()]
 
 
 class ModelRegistry:
@@ -640,6 +644,12 @@ class ModelRegistry:
             return "antigravity"
         if model_id in _runtime_kimi[0] or model_id.startswith("kimi-"):
             return "kimi"
+        if (
+            model_id == DEFAULT_CURSOR_MODEL
+            or model_id in _runtime_cursor[0]
+            or model_id.startswith("composer-")
+        ):
+            return "cursor"
         return "codex"
 
 
@@ -701,3 +711,23 @@ def set_kimi_models(models: frozenset[str]) -> None:
 def reset_kimi_models() -> None:
     """Clear runtime Kimi models. For test teardown only."""
     _runtime_kimi[0] = frozenset()
+
+
+def get_cursor_models() -> frozenset[str]:
+    """Return dynamically discovered Cursor models (may be empty)."""
+    return _runtime_cursor[0]
+
+
+def set_cursor_models(models: frozenset[str]) -> None:
+    """Set runtime Cursor models discovered externally.
+
+    Refuses to overwrite with an empty set to prevent cache wipe.
+    """
+    if not models:
+        return
+    _runtime_cursor[0] = models
+
+
+def reset_cursor_models() -> None:
+    """Clear runtime Cursor models. For test teardown only."""
+    _runtime_cursor[0] = frozenset()

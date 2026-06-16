@@ -331,6 +331,20 @@ def test_sync_kimi_to_ductor(tmp_path: Path) -> None:
     assert link.resolve() == (kimi_skills / "from-kimi").resolve()
 
 
+def test_sync_cursor_to_ductor(tmp_path: Path) -> None:
+    paths = _make_paths(tmp_path)
+    cursor_home = tmp_path / "fake_home" / ".cursor"
+    cursor_home.mkdir(parents=True)
+    cursor_skills = cursor_home / "skills"
+    _make_skill(cursor_skills, "from-cursor")
+    with patch("ductor_bot.workspace.skill_sync._cli_skill_dirs") as mock:
+        mock.return_value = {"cursor": cursor_skills}
+        sync_skills(paths)
+    link = paths.skills_dir / "from-cursor"
+    assert link.is_symlink()
+    assert link.resolve() == (cursor_skills / "from-cursor").resolve()
+
+
 def test_sync_ductor_to_all_three(tmp_path: Path) -> None:
     paths, claude_skills, codex_skills = _setup_three_dirs(tmp_path)
     gemini_home = tmp_path / "fake_home" / ".gemini"
@@ -951,7 +965,7 @@ def test_bundled_docker_replaces_old_symlink(tmp_path: Path) -> None:
 # Group: skill sync toggle config (#141)
 # ---------------------------------------------------------------------------
 
-_ALL_PROVIDERS = frozenset({"claude", "codex", "gemini"})
+_ALL_PROVIDERS = frozenset({"claude", "codex", "gemini", "kimi", "cursor"})
 
 
 def test_load_skill_sync_config_missing_file(tmp_path: Path) -> None:
@@ -987,11 +1001,11 @@ def test_cli_skill_dirs_filters_disabled_provider(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     fake_home = tmp_path / "home"
-    for name in (".claude", ".codex", ".gemini"):
+    for name in (".claude", ".codex", ".gemini", ".kimi", ".cursor"):
         (fake_home / name).mkdir(parents=True)
     monkeypatch.delenv("CODEX_HOME", raising=False)
     with patch("ductor_bot.workspace.skill_sync.Path.home", return_value=fake_home):
-        assert set(_cli_skill_dirs(None)) == {"claude", "codex", "gemini"}
+        assert set(_cli_skill_dirs(None)) == {"claude", "codex", "gemini", "kimi", "cursor"}
         assert set(_cli_skill_dirs(frozenset({"claude", "gemini"}))) == {"claude", "gemini"}
         assert _cli_skill_dirs(frozenset()) == {}
 

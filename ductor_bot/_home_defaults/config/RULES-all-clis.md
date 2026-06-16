@@ -15,7 +15,7 @@ Edit only when the user asks for behavior changes.
 
 ### Model and Provider
 
-- `provider`: `claude`, `codex`, `gemini`, `antigravity`, or `kimi`
+- `provider`: `claude`, `codex`, `gemini`, `antigravity`, `kimi`, or `cursor`
 - `model`: default model id
   - Claude models: `haiku`, `sonnet`, `sonnet[1m]`, `opus`, `opus[1m]`, `fable`
   - Codex models:
@@ -32,6 +32,7 @@ Edit only when the user asks for behavior changes.
     - `gemini-3-flash-preview` - Next-gen fast preview
     - `gemini-3.1-pro-preview` - Latest preview
    - Kimi models: `kimi-code/kimi-for-coding` (recommended), `kimi-k2-0905-preview`
+     - Cursor models: `auto` (recommended), `composer-2.5-fast`, `gpt-5.5-medium`, `gemini-3.1-pro`, etc.
   - Antigravity models:
     - `antigravity-default` - Let `agy` choose the provider-level default
     - Display names from `config/antigravity_models.json` may be known at runtime,
@@ -92,6 +93,7 @@ For user-facing schedules, set `user_timezone` explicitly.
 - `cli_parameters.codex`: List of extra CLI flags for Codex main agent (e.g., `["--chrome"]`)
 - `cli_parameters.gemini`: List of extra CLI flags for Gemini main agent
 - `cli_parameters.antigravity`: List of extra CLI flags for Antigravity main agent (e.g., `["--log-file", "agy.log"]`)
+- `cli_parameters.cursor`: List of extra CLI flags for Cursor agent (e.g., `["--verbose"]`)
 
 These parameters are appended to every CLI invocation for the respective provider.
 Parameters are inserted before the `--` separator in commands.

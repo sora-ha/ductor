@@ -10,6 +10,7 @@ from ductor_bot.cli.codex_provider import CodexCLI
 from ductor_bot.cli.factory import create_cli
 from ductor_bot.cli.gemini_provider import GeminiCLI
 from ductor_bot.cli.kimi_provider import KimiCLI
+from ductor_bot.cli.cursor_provider import CursorCLI
 
 
 def test_create_cli_returns_kimi() -> None:
@@ -40,3 +41,9 @@ def test_create_cli_returns_gemini() -> None:
 def test_create_cli_unknown_provider_returns_claude() -> None:
     cli = create_cli(CLIConfig(provider="unknown"))
     assert isinstance(cli, ClaudeCodeCLI)
+
+
+def test_create_cli_returns_cursor() -> None:
+    with patch("ductor_bot.cli.cursor_provider.which", return_value="/usr/bin/cursor"):
+        cli = create_cli(CLIConfig(provider="cursor"))
+    assert isinstance(cli, CursorCLI)

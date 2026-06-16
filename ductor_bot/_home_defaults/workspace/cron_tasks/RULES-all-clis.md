@@ -15,6 +15,7 @@ For cron tool commands (add/edit/remove/list), see `tools/cron_tools/CLAUDE.md`.
    - Codex models: `gpt-5.4`, `gpt-5.4-mini`, `gpt-5.3-codex`, `gpt-5.2`
    - Gemini models: `gemini-2.5-pro`, `gemini-2.5-flash`, `gemini-2.5-flash-lite`, `gemini-3-pro-preview`, `gemini-3-flash-preview`, `gemini-3.1-pro-preview`
    - Kimi models: `kimi-code/kimi-for-coding`, `kimi-k2-0905-preview`
+     - Cursor models: `auto` (recommended), `composer-2.5-fast`, `gpt-5.5-medium`, `gemini-3.1-pro`, etc.
    - Default if user doesn't specify: Use global config model
 
 3. **If Codex provider: Which thinking level?** (`--reasoning-effort <level>`)

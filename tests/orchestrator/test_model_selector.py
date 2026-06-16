@@ -28,10 +28,12 @@ _AUTHED_CODEX = AuthResult("codex", AuthStatus.AUTHENTICATED)
 _AUTHED_GEMINI = AuthResult("gemini", AuthStatus.AUTHENTICATED)
 _AUTHED_ANTIGRAVITY = AuthResult("antigravity", AuthStatus.AUTHENTICATED)
 _AUTHED_KIMI = AuthResult("kimi", AuthStatus.AUTHENTICATED)
+_AUTHED_CURSOR = AuthResult("cursor", AuthStatus.AUTHENTICATED)
 _NOT_FOUND_CLAUDE = AuthResult("claude", AuthStatus.NOT_FOUND)
 _NOT_FOUND_CODEX = AuthResult("codex", AuthStatus.NOT_FOUND)
 _NOT_FOUND_GEMINI = AuthResult("gemini", AuthStatus.NOT_FOUND)
 _NOT_FOUND_KIMI = AuthResult("kimi", AuthStatus.NOT_FOUND)
+_NOT_FOUND_CURSOR = AuthResult("cursor", AuthStatus.NOT_FOUND)
 
 _CODEX_MODELS = [
     CodexModelInfo(
@@ -270,6 +272,15 @@ async def test_callback_provider_kimi(orch: Orchestrator) -> None:
     assert "kimi-code/kimi-for-coding" in labels
 
 
+async def test_callback_provider_cursor(orch: Orchestrator) -> None:
+    resp = await handle_model_callback(orch, SessionKey(chat_id=1), "ms:p:cursor")
+    assert "Select Cursor model" in resp.text
+    assert resp.buttons is not None
+    labels = [btn.text for row in resp.buttons.rows for btn in row]
+    assert "auto" in labels
+    assert "composer-2.5-fast" in labels
+
+
 # -- handle_model_callback: model selection --
 
 
@@ -297,6 +308,16 @@ async def test_callback_model_kimi_switches_without_reasoning_step(orch: Orchest
     assert resp.buttons is None
     assert orch._config.model == "antigravity-default"
     assert orch._config.provider == "antigravity"
+
+
+async def test_callback_model_cursor_switches_without_reasoning_step(orch: Orchestrator) -> None:
+    object.__setattr__(orch._process_registry, "kill_all", AsyncMock(return_value=0))
+    resp = await handle_model_callback(orch, SessionKey(chat_id=1), "ms:m:auto")
+    assert "auto" in resp.text
+    assert "Thinking level" not in resp.text
+    assert resp.buttons is None
+    assert orch._config.model == "auto"
+    assert orch._config.provider == "cursor"
 
 
 async def test_callback_model_codex_shows_reasoning(orch: Orchestrator) -> None:

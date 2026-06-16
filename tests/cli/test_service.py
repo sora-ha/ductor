@@ -159,6 +159,20 @@ def test_cli_parameters_for_kimi() -> None:
     assert cfg.cli_parameters_for_provider("kimi") == ["--verbose"]
 
 
+def test_cli_parameters_for_cursor() -> None:
+    cfg = CLIServiceConfig(
+        working_dir="/tmp",
+        default_model="auto",
+        provider="cursor",
+        max_turns=None,
+        max_budget_usd=None,
+        permission_mode="bypassPermissions",
+        cursor_cli_parameters=("--verbose",),
+    )
+
+    assert cfg.cli_parameters_for_provider("cursor") == ["--verbose"]
+
+
 async def test_stream_callbacks_dispatches_compact_boundary() -> None:
     """CompactBoundaryEvent fires on_compact_boundary and on_status(None), in order."""
     from ductor_bot.cli.service import _StreamCallbacks

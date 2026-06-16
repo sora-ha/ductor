@@ -237,7 +237,9 @@ select_gemini = "Select Gemini model:"
 select_codex = "Select Codex model:"
 select_antigravity = "Select Antigravity model:"
 select_kimi = "Select Kimi model:"
+select_cursor = "Select Cursor model:"
 select_kimi = "Select Kimi model:"
+select_cursor = "Select Cursor model:"
 no_codex = "No Codex models available."
 no_gemini = "No Gemini models discovered from local Gemini CLI files."
 thinking_level = "Thinking level for {model}:"
@@ -277,12 +279,12 @@ unknown_action = "Unknown action. Refreshed cron list."
 header = "**Welcome to ductor.dev{name}!**"
 tagline = """\
 Deploy from your pocket. Automate from your couch.
-Claude Code, Codex & Gemini -- straight from Telegram."""
+Claude Code, Codex, Gemini & Cursor -- straight from Telegram."""
 hint_model = "/model — switch models"
 hint_info = "/info — docs & links"
 hint_help = "/help — all commands"
 
-no_auth = "No CLI authenticated yet. Run `claude auth`, `codex auth`, or authenticate in `gemini` to get started."
+no_auth = "No CLI authenticated yet. Run `claude auth`, `codex auth`, authenticate in `gemini`, or log in to `cursor` to get started."
 auth_line = "{providers} authenticated.\nModel: **{model}**"
 
 btn_know = "Let's get to know each other!"
@@ -307,8 +309,8 @@ Then ask me who I am and what I need help with."""
 [info]
 header = "**ductor.dev**"
 version = "Version: `{version}`"
-telegram_description = "AI coding agents (Claude, Codex, Gemini) on Telegram.\nNamed sessions, persistent memory, cron jobs, webhooks, live streaming."
-matrix_description = "AI coding agents (Claude, Codex, Gemini) on Matrix.\nNamed sessions, persistent memory, cron jobs, webhooks, live streaming."
+telegram_description = "AI coding agents (Claude, Codex, Gemini, Cursor) on Telegram.\nNamed sessions, persistent memory, cron jobs, webhooks, live streaming."
+matrix_description = "AI coding agents (Claude, Codex, Gemini, Cursor) on Matrix.\nNamed sessions, persistent memory, cron jobs, webhooks, live streaming."
 
 # -- Help (categories) --------------------------------------------------------
 
@@ -416,6 +418,7 @@ claude_multi = "`/session @opus <prompt>` — Claude (opus)"
 codex_multi = "`/session @codex <prompt>` — Codex"
 gemini_multi = "`/session @flash <prompt>` — Gemini (flash)"
 kimi_multi = "`/session @kimi <prompt>` — Kimi"
+cursor_multi = "`/session @cursor <prompt>` — Cursor"
 explicit = "`/session @provider model <prompt>` — explicit"
 
 # -- File browser --------------------------------------------------------------

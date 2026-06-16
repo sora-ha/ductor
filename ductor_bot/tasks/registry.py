@@ -300,6 +300,6 @@ def _seed_task_folder(
 
     # Deploy rule files for all providers
     rules_content = _TASK_RULES.format(taskmemory_path=taskmemory)
-    for name in ("CLAUDE.md", "AGENTS.md", "GEMINI.md"):
+    for name in ("CLAUDE.md", "AGENTS.md", "GEMINI.md", "KIMI.md", "CURSOR.md"):
         rules_path = folder / name
         rules_path.write_text(rules_content, encoding="utf-8")

@@ -16,6 +16,7 @@ def test_cli_parameters_config_defaults() -> None:
     assert config.gemini == []
     assert config.antigravity == []
     assert config.kimi == []
+    assert config.cursor == []
 
 
 def test_cli_parameters_config_with_values() -> None:
@@ -26,6 +27,7 @@ def test_cli_parameters_config_with_values() -> None:
         gemini=["--experimental"],
         antigravity=["--log-file", "agy.log"],
         kimi=["--verbose"],
+        cursor=["--trust"],
     )
     assert config.claude == ["--fast", "--no-cache"]
     assert config.codex == ["--verbose", "--debug"]
@@ -44,6 +46,7 @@ def test_agent_config_includes_cli_parameters() -> None:
     assert config.cli_parameters.gemini == []
     assert config.cli_parameters.antigravity == []
     assert config.cli_parameters.kimi == []
+    assert config.cli_parameters.cursor == []
 
 
 def test_agent_config_with_cli_parameters() -> None:
@@ -54,6 +57,7 @@ def test_agent_config_with_cli_parameters() -> None:
             codex=["--verbose"],
             antigravity=["--log-file", "agy.log"],
             kimi=["--verbose"],
+            cursor=["--trust"],
         ),
     )
     assert config.cli_parameters.claude == ["--fast"]
@@ -70,6 +74,7 @@ def test_agent_config_json_round_trip_with_cli_parameters() -> None:
             codex=["--verbose"],
             antigravity=["--log-file", "agy.log"],
             kimi=["--verbose"],
+            cursor=["--trust"],
         ),
     )
 
@@ -85,6 +90,7 @@ def test_agent_config_json_round_trip_with_cli_parameters() -> None:
     assert restored.cli_parameters.codex == ["--verbose"]
     assert restored.cli_parameters.antigravity == ["--log-file", "agy.log"]
     assert restored.cli_parameters.kimi == ["--verbose"]
+    assert restored.cli_parameters.cursor == ["--trust"]
 
 
 def test_deep_merge_preserves_cli_parameters() -> None:
@@ -155,6 +161,8 @@ def test_deep_merge_nested_cli_parameters() -> None:
     assert merged["cli_parameters"]["antigravity"] == []
     assert "kimi" in merged["cli_parameters"]
     assert merged["cli_parameters"]["kimi"] == []
+    assert "cursor" in merged["cli_parameters"]
+    assert merged["cli_parameters"]["cursor"] == []
     assert changed is True
 
 

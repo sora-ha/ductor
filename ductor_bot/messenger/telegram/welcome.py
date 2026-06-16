@@ -122,11 +122,13 @@ def _build_auth_block(auth_results: dict[str, AuthResult], config: AgentConfig) 
     codex = auth_results.get("codex")
     gemini = auth_results.get("gemini")
     kimi = auth_results.get("kimi")
+    cursor = auth_results.get("cursor")
 
     claude_ok = claude is not None and claude.is_authenticated
     codex_ok = codex is not None and codex.is_authenticated
     gemini_ok = gemini is not None and gemini.is_authenticated
     kimi_ok = kimi is not None and kimi.is_authenticated
+    cursor_ok = cursor is not None and cursor.is_authenticated
 
     providers: list[str] = []
     if claude_ok:
@@ -137,6 +139,8 @@ def _build_auth_block(auth_results: dict[str, AuthResult], config: AgentConfig) 
         providers.append("Gemini")
     if kimi_ok:
         providers.append("Kimi")
+    if cursor_ok:
+        providers.append("Cursor")
 
     if not providers:
         return t("welcome.no_auth")

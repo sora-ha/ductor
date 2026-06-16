@@ -236,6 +236,7 @@ select_gemini = "Gemini-Modell auswählen:"
 select_codex = "Codex-Modell auswählen:"
 select_antigravity = "Antigravity-Modell auswählen:"
 select_kimi = "Kimi-Modell auswählen:"
+select_cursor = "Select Cursor model:"
 no_codex = "Keine Codex-Modelle verfügbar."
 no_gemini = "Keine Gemini-Modelle aus lokalen CLI-Dateien gefunden."
 thinking_level = "Denk-Stufe für {model}:"
@@ -305,8 +306,8 @@ Dann frag mich, wer ich bin und wobei ich Hilfe brauche."""
 [info]
 header = "**ductor.dev**"
 version = "Version: `{version}`"
-telegram_description = "KI-Coding-Agents (Claude, Codex, Gemini) auf Telegram.\nBenannte Sessions, persistentes Gedächtnis, Cron-Jobs, Webhooks, Live-Streaming."
-matrix_description = "KI-Coding-Agents (Claude, Codex, Gemini) auf Matrix.\nBenannte Sessions, persistentes Gedächtnis, Cron-Jobs, Webhooks, Live-Streaming."
+telegram_description = "KI-Coding-Agents (Claude, Codex, Gemini, Cursor) auf Telegram.\nBenannte Sessions, persistentes Gedächtnis, Cron-Jobs, Webhooks, Live-Streaming."
+matrix_description = "KI-Coding-Agents (Claude, Codex, Gemini, Cursor) auf Matrix.\nBenannte Sessions, persistentes Gedächtnis, Cron-Jobs, Webhooks, Live-Streaming."
 
 # -- Hilfe (Kategorien) -------------------------------------------------------
 
@@ -414,6 +415,7 @@ claude_multi = "`/session @opus <Prompt>` — Claude (opus)"
 codex_multi = "`/session @codex <Prompt>` — Codex"
 gemini_multi = "`/session @flash <Prompt>` — Gemini (flash)"
 kimi_multi = "`/session @kimi <prompt>` — Kimi"
+cursor_multi = "`/session @cursor <prompt>` — Cursor"
 explicit = "`/session @provider model <Prompt>` — explizit"
 
 # -- Dateibrowser --------------------------------------------------------------

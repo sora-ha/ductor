@@ -11,6 +11,7 @@ from ductor_bot.cli.auth import (
     check_antigravity_auth,
     check_claude_auth,
     check_codex_auth,
+    check_cursor_auth,
     check_gemini_auth,
     check_kimi_auth,
     format_age,
@@ -687,3 +688,88 @@ def test_check_kimi_auth_with_credentials_file(tmp_path: Path, monkeypatch: pyte
     assert result.provider == "kimi"
     assert result.status == AuthStatus.AUTHENTICATED
     assert result.auth_file == creds_dir / "default.json"
+
+
+
+# -- Cursor auth --
+
+
+def test_check_cursor_auth_not_found(monkeypatch: pytest.MonkeyPatch) -> None:
+    import ductor_bot.cli.auth as _auth_mod
+
+    monkeypatch.setattr(_auth_mod.shutil, "which", lambda _cmd: None)
+
+    result = check_cursor_auth()
+
+    assert result.provider == "cursor"
+    assert result.status == AuthStatus.NOT_FOUND
+
+
+def test_check_cursor_auth_authenticated(monkeypatch: pytest.MonkeyPatch) -> None:
+    import subprocess
+
+    import ductor_bot.cli.auth as _auth_mod
+
+    class _FakeResult:
+        returncode = 0
+        stdout = "\u2713 Logged in as user@example.com"
+        stderr = ""
+
+    monkeypatch.setattr(_auth_mod.shutil, "which", lambda _cmd: "/usr/bin/cursor")
+    monkeypatch.setattr(subprocess, "run", lambda *_a, **_kw: _FakeResult())
+
+    result = check_cursor_auth()
+
+    assert result.provider == "cursor"
+    assert result.status == AuthStatus.AUTHENTICATED
+
+
+def test_check_cursor_auth_installed_not_logged_in(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import subprocess
+
+    import ductor_bot.cli.auth as _auth_mod
+
+    class _FakeResult:
+        returncode = 0
+        stdout = "Not logged in"
+        stderr = ""
+
+    monkeypatch.setattr(_auth_mod.shutil, "which", lambda _cmd: "/usr/bin/cursor")
+    monkeypatch.setattr(subprocess, "run", lambda *_a, **_kw: _FakeResult())
+
+    result = check_cursor_auth()
+
+    assert result.provider == "cursor"
+    assert result.status == AuthStatus.INSTALLED
+
+
+def test_check_cursor_auth_uses_whoami_fallback(monkeypatch: pytest.MonkeyPatch) -> None:
+    import subprocess
+
+    import ductor_bot.cli.auth as _auth_mod
+
+    calls: list[list[str]] = []
+
+    class _StatusResult:
+        returncode = 1
+        stdout = ""
+        stderr = "error"
+
+    class _WhoamiResult:
+        returncode = 0
+        stdout = "\u2713 Logged in as user@example.com"
+        stderr = ""
+
+    def _run(cmd: list[str], *_a: object, **_kw: object) -> object:
+        calls.append(cmd)
+        return _StatusResult() if cmd[-1] == "status" else _WhoamiResult()
+
+    monkeypatch.setattr(_auth_mod.shutil, "which", lambda _cmd: "/usr/bin/cursor")
+    monkeypatch.setattr(subprocess, "run", _run)
+
+    result = check_cursor_auth()
+
+    assert result.status == AuthStatus.AUTHENTICATED
+    assert any(cmd[-1] == "whoami" for cmd in calls)

@@ -106,18 +106,36 @@ class TestBuildWelcomeText:
         assert "Kimi authenticated" in text
         assert "kimi-code/kimi-for-coding" in text
 
+    def test_only_cursor_authenticated(self) -> None:
+        from ductor_bot.messenger.telegram.welcome import build_welcome_text
+
+        auth_results = {
+            "claude": _auth("claude", authenticated=False),
+            "codex": _auth("codex", authenticated=False),
+            "gemini": _auth("gemini", authenticated=False),
+            "kimi": _auth("kimi", authenticated=False),
+            "cursor": _auth("cursor"),
+        }
+        cfg = _config(model="auto", provider="cursor")
+        text = build_welcome_text("Cursor", auth_results, cfg)
+
+        assert "Cursor authenticated" in text
+        assert "auto" in text
+
     def test_no_providers_authenticated(self) -> None:
         from ductor_bot.messenger.telegram.welcome import build_welcome_text
 
         auth_results = {
             "claude": _auth("claude", authenticated=False),
             "codex": _auth("codex", authenticated=False),
+            "cursor": _auth("cursor", authenticated=False),
         }
         text = build_welcome_text("Dave", auth_results, _config())
 
         assert "No CLI authenticated" in text
         assert "claude auth" in text
         assert "codex auth" in text
+        assert "cursor" in text
 
     def test_empty_auth_results(self) -> None:
         from ductor_bot.messenger.telegram.welcome import build_welcome_text

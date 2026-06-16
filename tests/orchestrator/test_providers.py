@@ -8,9 +8,12 @@ import pytest
 
 from ductor_bot.config import (
     AgentConfig,
+    DEFAULT_CURSOR_MODEL,
     DEFAULT_KIMI_MODEL,
+    reset_cursor_models,
     reset_gemini_models,
     reset_kimi_models,
+    set_cursor_models,
     set_gemini_models,
 )
 from ductor_bot.orchestrator.providers import ProviderManager
@@ -28,6 +31,13 @@ def _reset_kimi():
     reset_kimi_models()
     yield
     reset_kimi_models()
+
+
+@pytest.fixture(autouse=True)
+def _reset_cursor():
+    reset_cursor_models()
+    yield
+    reset_cursor_models()
 
 
 def _pm(
@@ -69,6 +79,12 @@ class TestResolveRuntimeTarget:
         model, provider = pm.resolve_runtime_target("kimi-code/kimi-for-coding")
         assert model == "kimi-code/kimi-for-coding"
         assert provider == "kimi"
+
+    def test_cursor_model(self) -> None:
+        pm = _pm()
+        model, provider = pm.resolve_runtime_target("composer-2.5-fast")
+        assert model == "composer-2.5-fast"
+        assert provider == "cursor"
 
     def test_codex_model(self) -> None:
         pm = _pm()
@@ -115,6 +131,13 @@ class TestResolveSessionDirective:
         assert result is not None
         assert result[0] == "kimi"
         assert result[1] == DEFAULT_KIMI_MODEL
+
+    def test_provider_name_cursor(self) -> None:
+        pm = _pm()
+        result = pm.resolve_session_directive("cursor")
+        assert result is not None
+        assert result[0] == "cursor"
+        assert result[1] == DEFAULT_CURSOR_MODEL
 
     def test_known_model(self) -> None:
         pm = _pm()
@@ -209,6 +232,10 @@ class TestDefaultModelForProvider:
         pm = _pm()
         assert pm.default_model_for_provider("kimi") == DEFAULT_KIMI_MODEL
 
+    def test_cursor(self) -> None:
+        pm = _pm()
+        assert pm.default_model_for_provider("cursor") == DEFAULT_CURSOR_MODEL
+
     def test_unknown_provider(self) -> None:
         pm = _pm()
         assert pm.default_model_for_provider("unknown") == ""
@@ -289,6 +316,10 @@ class TestActiveProviderName:
         pm = _pm(model="kimi-code/kimi-for-coding", provider="kimi")
         assert pm.active_provider_name == "Kimi"
 
+    def test_cursor(self) -> None:
+        pm = _pm(model="auto", provider="cursor")
+        assert pm.active_provider_name == "Cursor"
+
 
 # ---------------------------------------------------------------------------
 # on_gemini_models_refresh
@@ -323,3 +354,17 @@ class TestOnKimiModelsRefresh:
 
         pm.on_kimi_models_refresh(("kimi-k2-0905-preview",))
         assert pm.is_known_model("kimi-k2-0905-preview")
+
+
+# ---------------------------------------------------------------------------
+# on_cursor_models_refresh
+# ---------------------------------------------------------------------------
+
+
+class TestOnCursorModelsRefresh:
+    def test_updates_known_model_ids(self) -> None:
+        pm = _pm()
+        assert not pm.is_known_model("composer-2.5-fast")
+
+        pm.on_cursor_models_refresh(("composer-2.5-fast",))
+        assert pm.is_known_model("composer-2.5-fast")

@@ -13,7 +13,7 @@ from ductor_bot.workspace.paths import DuctorPaths
 logger = logging.getLogger(__name__)
 
 # Provider rule files — created per task only for authenticated providers.
-_RULE_FILENAMES = ("CLAUDE.md", "AGENTS.md", "GEMINI.md", "KIMI.md")
+_RULE_FILENAMES = ("CLAUDE.md", "AGENTS.md", "GEMINI.md", "KIMI.md", "CURSOR.md")
 
 
 def _detect_rule_filenames(cron_tasks_dir: Path) -> list[str]:

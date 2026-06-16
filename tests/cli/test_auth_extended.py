@@ -36,6 +36,7 @@ def test_check_all_auth_returns_all_providers(tmp_path: Path, monkeypatch: pytes
     assert "gemini" in results
     assert "antigravity" in results
     assert "kimi" in results
+    assert "cursor" in results
 
 
 def test_format_age_future_returns_just_now() -> None:

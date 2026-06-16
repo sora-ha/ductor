@@ -96,6 +96,10 @@ class TestNewSessionText:
         text = new_session_text("gemini")
         assert "Gemini" in text
 
+    def test_cursor_label(self) -> None:
+        text = new_session_text("cursor")
+        assert "Cursor" in text
+
     def test_unknown_provider_passthrough(self) -> None:
         text = new_session_text("custom")
         assert "custom" in text

@@ -486,6 +486,44 @@ def check_kimi_auth() -> AuthResult:
     return result
 
 
+def check_cursor_auth() -> AuthResult:
+    """Check Cursor CLI auth via executable presence and `cursor agent status`."""
+    cursor_cli = shutil.which("cursor")
+    if cursor_cli is None:
+        result = AuthResult("cursor", AuthStatus.NOT_FOUND)
+        logger.debug("Auth check provider=%s status=%s", result.provider, result.status)
+        return result
+
+    if _cursor_cli_logged_in(cursor_cli):
+        result = AuthResult("cursor", AuthStatus.AUTHENTICATED)
+        logger.debug("Auth check provider=%s status=%s", result.provider, result.status)
+        return result
+
+    result = AuthResult("cursor", AuthStatus.INSTALLED)
+    logger.debug("Auth check provider=%s status=%s", result.provider, result.status)
+    return result
+
+
+def _cursor_cli_logged_in(cursor_cli: str) -> bool:
+    """Run ``cursor agent status`` / ``whoami`` and return True when logged in."""
+    for subcmd in ("status", "whoami"):
+        try:
+            proc = subprocess.run(
+                [cursor_cli, "agent", subcmd],
+                capture_output=True,
+                text=True,
+                timeout=10,
+                check=False,
+                creationflags=_CREATION_FLAGS,
+            )
+        except (OSError, subprocess.TimeoutExpired):
+            continue
+        output = f"{proc.stdout}\n{proc.stderr}".lower()
+        if "logged in" in output and "not logged in" not in output:
+            return True
+    return False
+
+
 def _kimi_share_dir() -> Path:
     custom = _normalize_key_like_value(os.environ.get("KIMI_SHARE_DIR", ""))
     if custom:
@@ -533,6 +571,7 @@ _CHECKERS: dict[str, Callable[[], AuthResult]] = {
     "gemini": check_gemini_auth,
     "antigravity": check_antigravity_auth,
     "kimi": check_kimi_auth,
+    "cursor": check_cursor_auth,
 }
 
 

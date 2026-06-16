@@ -107,6 +107,7 @@ class CLIServiceConfig:
     gemini_cli_parameters: tuple[str, ...] = ()
     antigravity_cli_parameters: tuple[str, ...] = ()
     kimi_cli_parameters: tuple[str, ...] = ()
+    cursor_cli_parameters: tuple[str, ...] = ()
     agent_name: str = "main"
     interagent_port: int = 8799
     # External transcription hooks (#66) — empty strings keep built-in strategies.
@@ -123,6 +124,8 @@ class CLIServiceConfig:
             return list(self.antigravity_cli_parameters)
         if provider == "kimi":
             return list(self.kimi_cli_parameters)
+        if provider == "cursor":
+            return list(self.cursor_cli_parameters)
         return list(self.claude_cli_parameters)
 
 

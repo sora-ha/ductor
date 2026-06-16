@@ -25,7 +25,7 @@ JOBS_PATH = DUCTOR_HOME / "cron_jobs.json"
 CRON_TASKS_DIR = DUCTOR_HOME / "workspace" / "cron_tasks"
 
 # Provider rule files — only create for authenticated providers.
-_RULE_FILENAMES = ("CLAUDE.md", "AGENTS.md", "GEMINI.md", "KIMI.md")
+_RULE_FILENAMES = ("CLAUDE.md", "AGENTS.md", "GEMINI.md", "KIMI.md", "CURSOR.md")
 
 
 def read_user_timezone() -> str:

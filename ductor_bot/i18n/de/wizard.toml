@@ -22,6 +22,7 @@ codex_check_failed = "[yellow]Codex auth check raised: {error}. Skipping.[/yello
 gemini_check_failed = "[yellow]Gemini auth check raised: {error}. Skipping.[/yellow]"
 antigravity_check_failed = "[yellow]Antigravity auth check raised: {error}. Skipping.[/yellow]"
 kimi_check_failed = "[yellow]Kimi auth check raised: {error}. Skipping.[/yellow]"
+cursor_check_failed = "[yellow]Cursor auth check raised: {error}. Skipping.[/yellow]"
 
 [disclaimer]
 title = "[bold yellow]Haftungsausschluss[/bold yellow]"

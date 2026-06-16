@@ -28,11 +28,13 @@ def mock_paths(tmp_path: Path) -> DuctorPaths:
     for d in [config_dir, cron_dir, webhook_dir]:
         d.mkdir(parents=True)
 
-    # Create all 4 template variants for each directory
+    # Create all template variants for each directory
     for d in [config_dir, cron_dir, webhook_dir]:
         (d / "RULES-claude-only.md").write_text("# Claude Only Template")
         (d / "RULES-codex-only.md").write_text("# Codex Only Template")
         (d / "RULES-gemini-only.md").write_text("# Gemini Only Template")
+        (d / "RULES-kimi-only.md").write_text("# Kimi Only Template")
+        (d / "RULES-cursor-only.md").write_text("# Cursor Only Template")
         (d / "RULES-all-clis.md").write_text("# All CLIs Template")
 
     paths = MagicMock(spec=DuctorPaths)
@@ -91,6 +93,22 @@ def test_variant_selection_kimi_only(mock_paths: DuctorPaths) -> None:
     with patch("ductor_bot.cli.auth.check_all_auth", return_value=auth):
         selector = RulesSelector(mock_paths)
         assert selector.get_variant_suffix() == "kimi-only"
+
+
+def test_variant_selection_cursor_only(mock_paths: DuctorPaths) -> None:
+    """Test variant selection when only Cursor is authenticated."""
+    auth = {
+        "claude": AuthResult(provider="claude", status=AuthStatus.NOT_FOUND),
+        "codex": AuthResult(provider="codex", status=AuthStatus.NOT_FOUND),
+        "gemini": AuthResult(provider="gemini", status=AuthStatus.NOT_FOUND),
+        "antigravity": AuthResult(provider="antigravity", status=AuthStatus.NOT_FOUND),
+        "kimi": AuthResult(provider="kimi", status=AuthStatus.NOT_FOUND),
+        "cursor": AuthResult(provider="cursor", status=AuthStatus.AUTHENTICATED),
+    }
+
+    with patch("ductor_bot.cli.auth.check_all_auth", return_value=auth):
+        selector = RulesSelector(mock_paths)
+        assert selector.get_variant_suffix() == "cursor-only"
 
 
 def test_template_discovery(mock_paths: DuctorPaths) -> None:
@@ -196,6 +214,28 @@ def test_deploy_kimi_only_creates_kimi_md(mock_paths: DuctorPaths) -> None:
 
         config_kimi = mock_paths.ductor_home / "config" / "KIMI.md"
         assert config_kimi.exists()
+
+        config_claude = mock_paths.ductor_home / "config" / "CLAUDE.md"
+        assert not config_claude.exists()
+
+
+def test_deploy_cursor_only_creates_cursor_md(mock_paths: DuctorPaths) -> None:
+    """Test that only CURSOR.md is created when only Cursor is authenticated."""
+    auth = {
+        "claude": AuthResult(provider="claude", status=AuthStatus.NOT_FOUND),
+        "codex": AuthResult(provider="codex", status=AuthStatus.NOT_FOUND),
+        "gemini": AuthResult(provider="gemini", status=AuthStatus.NOT_FOUND),
+        "antigravity": AuthResult(provider="antigravity", status=AuthStatus.NOT_FOUND),
+        "kimi": AuthResult(provider="kimi", status=AuthStatus.NOT_FOUND),
+        "cursor": AuthResult(provider="cursor", status=AuthStatus.AUTHENTICATED),
+    }
+
+    with patch("ductor_bot.cli.auth.check_all_auth", return_value=auth):
+        selector = RulesSelector(mock_paths)
+        selector.deploy_rules()
+
+        config_cursor = mock_paths.ductor_home / "config" / "CURSOR.md"
+        assert config_cursor.exists()
 
         config_claude = mock_paths.ductor_home / "config" / "CLAUDE.md"
         assert not config_claude.exists()

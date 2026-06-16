@@ -15,6 +15,7 @@ from ductor_bot.cron.execution import (
     indent,
     parse_claude_result,
     parse_codex_result,
+    parse_cursor_result,
     parse_gemini_result,
     parse_kimi_result,
     parse_result,
@@ -182,6 +183,61 @@ class TestBuildCmd:
         with patch("ductor_bot.cron.execution.which", return_value=None):
             assert build_cmd(exec_config, "hello") is None
 
+    def test_cursor_provider(self) -> None:
+        exec_config = TaskExecutionConfig(
+            provider="cursor",
+            model="auto",
+            reasoning_effort="",
+            cli_parameters=["--verbose"],
+            permission_mode="bypassPermissions",
+            working_dir="/tmp",
+            file_access="all",
+        )
+        with patch("ductor_bot.cron.execution.which", return_value="/usr/bin/cursor"):
+            result = build_cmd(exec_config, "hello")
+        assert result is not None
+        assert result.cmd[0] == "/usr/bin/cursor"
+        assert "agent" in result.cmd
+        assert "--print" in result.cmd
+        assert "--output-format" in result.cmd
+        assert "stream-json" in result.cmd
+        assert "--stream-partial-output" in result.cmd
+        assert "--trust" in result.cmd
+        assert "--model" in result.cmd
+        assert "auto" in result.cmd
+        assert "--force" in result.cmd
+        assert "--verbose" in result.cmd
+        assert result.cmd[-2] == "--"
+        assert result.cmd[-1] == "hello"
+
+    def test_cursor_provider_no_force_when_restricted(self) -> None:
+        exec_config = TaskExecutionConfig(
+            provider="cursor",
+            model="auto",
+            reasoning_effort="",
+            cli_parameters=[],
+            permission_mode="normal",
+            working_dir="/tmp",
+            file_access="all",
+        )
+        with patch("ductor_bot.cron.execution.which", return_value="/usr/bin/cursor"):
+            result = build_cmd(exec_config, "hello")
+        assert result is not None
+        assert "--force" not in result.cmd
+
+    def test_cursor_returns_none_when_cli_missing(self) -> None:
+        exec_config = TaskExecutionConfig(
+            provider="cursor",
+            model="auto",
+            reasoning_effort="",
+            cli_parameters=[],
+            permission_mode="plan",
+            working_dir="/tmp",
+            file_access="all",
+        )
+        with patch("ductor_bot.cron.execution.which", return_value=None):
+            assert build_cmd(exec_config, "hello") is None
+
 
 class TestExecuteOneShotStdin:
     """Test execute_one_shot stdin_input parameter."""
@@ -335,6 +391,29 @@ class TestParseKimi:
         assert parse_kimi_result(raw) == "Raw kimi output"
 
 
+class TestParseCursor:
+    def test_empty_bytes(self) -> None:
+        assert parse_cursor_result(b"") == ""
+
+    def test_result_event(self) -> None:
+        data = (
+            b'{"type":"system","subtype":"init","session_id":"sid-1"}\n'
+            b'{"type":"result","subtype":"success","result":"Cursor result","session_id":"sid-1"}\n'
+        )
+        assert parse_cursor_result(data) == "Cursor result"
+
+    def test_assistant_fallback(self) -> None:
+        data = (
+            b'{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"Hello "}]}}\n'
+            b'{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"world"}]}}\n'
+        )
+        assert parse_cursor_result(data) == "Hello world"
+
+    def test_non_json_returns_raw(self) -> None:
+        raw = b"Raw cursor output"
+        assert parse_cursor_result(raw) == "Raw cursor output"
+
+
 class TestParseResult:
     def test_dispatches_to_gemini_parser(self) -> None:
         assert parse_result("gemini", b'{"result":"ok"}') == "ok"
@@ -342,6 +421,10 @@ class TestParseResult:
     def test_dispatches_to_kimi_parser(self) -> None:
         data = b'{"role": "assistant", "content": "Kimi result"}'
         assert parse_result("kimi", data) == "Kimi result"
+
+    def test_dispatches_to_cursor_parser(self) -> None:
+        data = b'{"type":"result","subtype":"success","result":"Cursor result"}'
+        assert parse_result("cursor", data) == "Cursor result"
 
     def test_unknown_provider_falls_back_to_claude(self) -> None:
         assert parse_result("unknown", b'{"result":"fallback"}') == "fallback"

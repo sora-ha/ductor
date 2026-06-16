@@ -46,6 +46,7 @@ class RulesSelector:
         codex_result = auth.get("codex")
         gemini_result = auth.get("gemini")
         kimi_result = auth.get("kimi")
+        cursor_result = auth.get("cursor")
 
         self._claude_authenticated = (
             claude_result.status == AuthStatus.AUTHENTICATED if claude_result else False
@@ -59,6 +60,9 @@ class RulesSelector:
         self._kimi_authenticated = (
             kimi_result.status == AuthStatus.AUTHENTICATED if kimi_result else False
         )
+        self._cursor_authenticated = (
+            cursor_result.status == AuthStatus.AUTHENTICATED if cursor_result else False
+        )
 
     @property
     def _authenticated_count(self) -> int:
@@ -69,6 +73,7 @@ class RulesSelector:
                 self._codex_authenticated,
                 self._gemini_authenticated,
                 self._kimi_authenticated,
+                self._cursor_authenticated,
             )
         )
 
@@ -81,6 +86,7 @@ class RulesSelector:
             "codex-only" if only Codex
             "gemini-only" if only Gemini
             "kimi-only" if only Kimi
+            "cursor-only" if only Cursor
             "claude-only" as fallback (no providers authenticated)
         """
         if self._authenticated_count >= 2:
@@ -91,6 +97,8 @@ class RulesSelector:
             return "gemini-only"
         if self._kimi_authenticated:
             return "kimi-only"
+        if self._cursor_authenticated:
+            return "cursor-only"
         return "claude-only"
 
     def discover_template_directories(self) -> list[Path]:
@@ -154,12 +162,13 @@ class RulesSelector:
         """
         variant = self.get_variant_suffix()
         logger.info(
-            "Deploying rule files (variant: %s, claude=%s, codex=%s, gemini=%s, kimi=%s)",
+            "Deploying rule files (variant: %s, claude=%s, codex=%s, gemini=%s, kimi=%s, cursor=%s)",
             variant,
             self._claude_authenticated,
             self._codex_authenticated,
             self._gemini_authenticated,
             self._kimi_authenticated,
+            self._cursor_authenticated,
         )
 
         template_dirs = self.discover_template_directories()
@@ -212,16 +221,24 @@ class RulesSelector:
                     deployed_count += 1
                     logger.debug("Deployed: %s -> KIMI.md", template.name)
 
+                # Deploy CURSOR.md if Cursor is authenticated
+                if self._cursor_authenticated:
+                    cursor_dst = dst_dir / "CURSOR.md"
+                    shutil.copy2(template, cursor_dst)
+                    deployed_count += 1
+                    logger.debug("Deployed: %s -> CURSOR.md", template.name)
+
             except OSError:
                 logger.exception("Failed to deploy %s", template)
 
         logger.info(
-            "Deployed %d rule files (Claude=%s, Codex=%s, Gemini=%s, Kimi=%s)",
+            "Deployed %d rule files (Claude=%s, Codex=%s, Gemini=%s, Kimi=%s, Cursor=%s)",
             deployed_count,
             self._claude_authenticated,
             self._codex_authenticated,
             self._gemini_authenticated,
             self._kimi_authenticated,
+            self._cursor_authenticated,
         )
 
         # Cleanup: Remove stale files that don't match current auth status
@@ -242,6 +259,8 @@ class RulesSelector:
             stale.append(("GEMINI.md", "Gemini"))
         if not self._kimi_authenticated:
             stale.append(("KIMI.md", "Kimi"))
+        if not self._cursor_authenticated:
+            stale.append(("CURSOR.md", "Cursor"))
 
         for filename, provider_name in stale:
             removed = self._remove_files_by_name(filename)

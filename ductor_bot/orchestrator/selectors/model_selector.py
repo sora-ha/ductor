@@ -11,8 +11,10 @@ from ductor_bot.cli.auth import AuthStatus, check_all_auth
 from ductor_bot.config import (
     ANTIGRAVITY_MODELS_ORDERED,
     CLAUDE_MODELS_ORDERED,
+    DEFAULT_CURSOR_MODEL,
     DEFAULT_KIMI_MODEL,
     get_antigravity_models,
+    get_cursor_models,
     get_gemini_models,
     update_config_file_async,
 )
@@ -221,6 +223,8 @@ async def model_selector_start(
         buttons.append(Button(text="ANTIGRAVITY", callback_data="ms:p:antigravity"))
     if "kimi" in authed:
         buttons.append(Button(text="KIMI", callback_data="ms:p:kimi"))
+    if "cursor" in authed:
+        buttons.append(Button(text="CURSOR", callback_data="ms:p:cursor"))
 
     provider_rows = [buttons[i : i + 2] for i in range(0, len(buttons), 2)]
     keyboard = ButtonGrid(rows=provider_rows)
@@ -439,6 +443,24 @@ async def _build_model_step(
         keyboard = ButtonGrid(rows=rows)
         return SelectorResponse(text=f"{header}\n\n{t('model.select_kimi')}", buttons=keyboard)
 
+    if provider == "cursor":
+        cursor_models = get_cursor_models()
+        if cursor_models:
+            cursor_rows = _chunk_buttons(sorted(cursor_models))
+        else:
+            cursor_rows = [
+                [Button(text=DEFAULT_CURSOR_MODEL, callback_data=f"ms:m:{DEFAULT_CURSOR_MODEL}")],
+                [
+                    Button(
+                        text="composer-2.5-fast",
+                        callback_data="ms:m:composer-2.5-fast",
+                    )
+                ],
+            ]
+        cursor_rows.append([Button(text=t("model.btn_back"), callback_data="ms:b:root")])
+        keyboard = ButtonGrid(rows=cursor_rows)
+        return SelectorResponse(text=f"{header}\n\n{t('model.select_cursor')}", buttons=keyboard)
+
     # Use cache instead of live discovery
     codex_models = codex_cache.models if codex_cache else []
     if not codex_models:
@@ -467,7 +489,7 @@ async def _handle_model_selected(
     """Handle a model button press. Codex shows reasoning; other providers switch directly."""
     provider = orch.models.provider_for(model_id)
 
-    if provider in ("claude", "gemini", "antigravity", "kimi"):
+    if provider in ("claude", "gemini", "antigravity", "kimi", "cursor"):
         result = await switch_model(orch, key, model_id)
         return SelectorResponse(text=result)
 

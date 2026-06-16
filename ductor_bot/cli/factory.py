@@ -32,6 +32,11 @@ def create_cli(config: CLIConfig) -> BaseCLI:
 
         return KimiCLI(config)
 
+    if config.provider == "cursor":
+        from ductor_bot.cli.cursor_provider import CursorCLI
+
+        return CursorCLI(config)
+
     from ductor_bot.cli.claude_provider import ClaudeCodeCLI
 
     return ClaudeCodeCLI(config)

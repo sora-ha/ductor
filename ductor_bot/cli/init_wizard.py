@@ -24,6 +24,7 @@ from ductor_bot.cli.auth import (
     check_antigravity_auth,
     check_claude_auth,
     check_codex_auth,
+    check_cursor_auth,
     check_gemini_auth,
     check_kimi_auth,
 )
@@ -114,6 +115,7 @@ def _check_clis(console: Console) -> None:
         ("gemini", check_gemini_auth),
         ("antigravity", check_antigravity_auth),
         ("kimi", check_kimi_auth),
+        ("cursor", check_cursor_auth),
     )
     for name, fn in probes:
         try:

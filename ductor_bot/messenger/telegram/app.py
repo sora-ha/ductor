@@ -1001,6 +1001,8 @@ class TelegramBot:
                 lines.append(t("session_help.gemini_multi"))
             if "kimi" in providers:
                 lines.append(t("session_help.kimi_multi"))
+            if "cursor" in providers:
+                lines.append(t("session_help.cursor_multi"))
             lines.append(t("session_help.explicit"))
 
         lines += [
@@ -1052,7 +1054,7 @@ class TelegramBot:
                 provider_override, model_override = resolved[0], resolved[1] or None
                 prompt = rest
                 # If key was a provider name, check for optional model after it
-                if key in ("claude", "codex", "gemini", "antigravity", "kimi"):
+                if key in ("claude", "codex", "gemini", "antigravity", "kimi", "cursor"):
                     model_match = re.match(r"([a-zA-Z][a-zA-Z0-9_.-]*)\s+", prompt)
                     if model_match:
                         candidate = model_match.group(1).lower()
@@ -1101,6 +1103,7 @@ class TelegramBot:
                     "gemini": "Gemini",
                     "antigravity": "Antigravity",
                     "kimi": "Kimi",
+                    "cursor": "Cursor",
                 }.get(provider, provider)
                 model_info = f" ({model})" if model else ""
                 await send_rich(

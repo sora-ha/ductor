@@ -15,8 +15,10 @@ from ductor_bot.cli.param_resolver import (
 from ductor_bot.config import (
     AgentConfig,
     CLIParametersConfig,
+    reset_cursor_models,
     reset_gemini_models,
     reset_kimi_models,
+    set_cursor_models,
     set_gemini_models,
     set_kimi_models,
 )
@@ -68,6 +70,11 @@ def _reset_gemini_models() -> None:
 @pytest.fixture(autouse=True)
 def _reset_kimi_models() -> None:
     reset_kimi_models()
+
+
+@pytest.fixture(autouse=True)
+def _reset_cursor_models() -> None:
+    reset_cursor_models()
 
 
 def test_resolve_global_only(base_config: AgentConfig, codex_cache: CodexModelCache) -> None:
@@ -357,4 +364,67 @@ def test_resolve_kimi_bucket_with_overrides(
     result = resolve_cli_config(merged, codex_cache, task_overrides=overrides)
 
     assert result.provider == "kimi"
+    assert result.cli_parameters == ["--verbose", "--some-flag"]
+
+
+
+def test_resolve_cursor_default_model(base_config: AgentConfig, codex_cache: CodexModelCache) -> None:
+    overrides = TaskOverrides(provider="cursor", model="auto")
+
+    result = resolve_cli_config(base_config, codex_cache, task_overrides=overrides)
+
+    assert result.provider == "cursor"
+    assert result.model == "auto"
+
+
+def test_resolve_cursor_composer_prefix_accepted(
+    base_config: AgentConfig, codex_cache: CodexModelCache
+) -> None:
+    overrides = TaskOverrides(provider="cursor", model="composer-2.5-fast")
+
+    result = resolve_cli_config(base_config, codex_cache, task_overrides=overrides)
+
+    assert result.provider == "cursor"
+    assert result.model == "composer-2.5-fast"
+
+
+def test_resolve_cursor_model_from_discovery(
+    base_config: AgentConfig, codex_cache: CodexModelCache
+) -> None:
+    set_cursor_models(frozenset({"composer-2.5-fast", "gpt-5.5-medium"}))
+    overrides = TaskOverrides(provider="cursor", model="gpt-5.5-medium")
+
+    result = resolve_cli_config(base_config, codex_cache, task_overrides=overrides)
+
+    assert result.provider == "cursor"
+    assert result.model == "gpt-5.5-medium"
+
+
+def test_resolve_cursor_invalid_model(base_config: AgentConfig, codex_cache: CodexModelCache) -> None:
+    overrides = TaskOverrides(provider="cursor", model="haiku")
+
+    with pytest.raises(DuctorError, match="Invalid Cursor model"):
+        resolve_cli_config(base_config, codex_cache, task_overrides=overrides)
+
+
+def test_resolve_cursor_bucket_with_overrides(
+    base_config: AgentConfig, codex_cache: CodexModelCache
+) -> None:
+    merged = base_config.model_copy(
+        update={
+            "cli_parameters": CLIParametersConfig(
+                claude=["IGNORED"],
+                cursor=["--verbose"],
+            ),
+        }
+    )
+    overrides = TaskOverrides(
+        provider="cursor",
+        model="auto",
+        cli_parameters=["--some-flag"],
+    )
+
+    result = resolve_cli_config(merged, codex_cache, task_overrides=overrides)
+
+    assert result.provider == "cursor"
     assert result.cli_parameters == ["--verbose", "--some-flag"]
