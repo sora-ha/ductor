@@ -98,6 +98,12 @@ class TestResolveRuntimeTarget:
         assert model == "haiku"
         assert provider == "claude"
 
+    def test_auto_respects_configured_cursor_provider(self) -> None:
+        pm = _pm(model="auto", provider="cursor")
+        model, provider = pm.resolve_runtime_target()
+        assert model == "auto"
+        assert provider == "cursor"
+
 
 # ---------------------------------------------------------------------------
 # resolve_session_directive

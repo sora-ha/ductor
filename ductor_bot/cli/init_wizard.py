@@ -276,7 +276,10 @@ def _ask_matrix_homeserver(console: Console) -> str:
         if url is None:
             _abort()
         url = url.strip().rstrip("/")
-        if url.startswith("https://") and len(url) > len("https://"):
+        if (
+            url.startswith(("https://", "http://"))
+            and len(url) > len("https://")
+        ):
             return url
         console.print(t_rich("wizard.matrix.homeserver.error"))
 
@@ -615,7 +618,9 @@ def _write_config(cfg: _WizardConfig) -> Path:
     if merged.get("gemini_api_key") is None:
         merged["gemini_api_key"] = DEFAULT_EMPTY_GEMINI_API_KEY
 
-    merged["transport"] = cfg.get("transport", "telegram")
+    selected_transport = cfg.get("transport", "telegram")
+    merged["transport"] = selected_transport
+    merged["transports"] = [selected_transport]
     merged["user_timezone"] = cfg.get("user_timezone", "UTC")
     raw_docker = merged.get("docker")
     if isinstance(raw_docker, dict):

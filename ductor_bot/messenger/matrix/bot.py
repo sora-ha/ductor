@@ -271,6 +271,8 @@ class MatrixBot:
         self._save_sync_token()  # Persist so next restart skips replayed events
         self._populate_rooms_from_sync()
 
+        await self._process_pending_invites()
+
         # Run startup (orchestrator, observers, hooks)
         from ductor_bot.messenger.matrix.startup import run_matrix_startup
 
@@ -1137,6 +1139,19 @@ class MatrixBot:
                 logger.warning("Failed to pin join notification in %s", room_id, exc_info=True)
 
     # --- Room invite handling ---
+
+    async def _process_pending_invites(self) -> None:
+        """Auto-join invites that were already present in the initial sync.
+
+        nio's invite callbacks only fire for new invites received during
+        ``sync_forever``. Pending invites from a restored sync token would
+        otherwise be ignored until another event triggers a callback.
+        """
+        for room_id, room in list(getattr(self._client, "invited_rooms", {}).items()):
+            try:
+                await self._on_invite(room, None)
+            except Exception:
+                logger.exception("Failed to process pending invite for %s", room_id)
 
     async def _on_invite(self, room: object, event: object) -> None:
         """Auto-join allowed rooms; reject and leave unauthorized ones."""

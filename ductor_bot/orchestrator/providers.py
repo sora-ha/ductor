@@ -175,7 +175,12 @@ class ProviderManager:
     def resolve_runtime_target(self, requested_model: str | None = None) -> tuple[str, str]:
         """Resolve requested model to the effective ``(model, provider)`` pair."""
         model_name = requested_model or self._config.model
-        return model_name, self._models.provider_for(model_name)
+        provider = self._models.provider_for(model_name)
+        # Cursor's default model is "auto", which collides with Gemini's
+        # "auto" alias. When the user explicitly configured Cursor, prefer it.
+        if model_name == "auto" and self._config.provider == "cursor":
+            provider = "cursor"
+        return model_name, provider
 
     def is_known_model(self, candidate: str) -> bool:
         """Return True if *candidate* is a recognized model ID for any provider."""

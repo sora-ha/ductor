@@ -282,3 +282,52 @@ class TestTrackSentEvent:
         assert len(stub._sent_event_ids) == 5
         assert "$ev0" not in stub._sent_event_ids
         assert "$ev9" in stub._sent_event_ids
+
+
+# ---------------------------------------------------------------------------
+# _process_pending_invites
+# ---------------------------------------------------------------------------
+
+
+class _InviteBotStub:
+    """Minimal MatrixBot stub for invite processing tests."""
+
+    def __init__(self) -> None:
+        self.invited_rooms: dict[str, FakeRoom] = {}
+        self._joined: list[str] = []
+        self._failed: list[str] = []
+        self._client = self  # _process_pending_invites reads self._client.invited_rooms
+
+    async def _on_invite(self, room: object, event: object) -> None:
+        room_id = getattr(room, "room_id", "")
+        if room_id == "!fail:server":
+            raise RuntimeError("boom")
+        self._joined.append(room_id)
+
+
+class TestProcessPendingInvites:
+    async def test_processes_all_pending_invites(self) -> None:
+        stub = _InviteBotStub()
+        stub.invited_rooms = {
+            "!a:server": FakeRoom(room_id="!a:server"),
+            "!b:server": FakeRoom(room_id="!b:server"),
+        }
+        await MatrixBot._process_pending_invites(stub)
+        assert stub._joined == ["!a:server", "!b:server"]
+
+    async def test_continues_after_failed_invite(self) -> None:
+        stub = _InviteBotStub()
+        stub.invited_rooms = {
+            "!a:server": FakeRoom(room_id="!a:server"),
+            "!fail:server": FakeRoom(room_id="!fail:server"),
+            "!b:server": FakeRoom(room_id="!b:server"),
+        }
+        await MatrixBot._process_pending_invites(stub)
+        assert "!a:server" in stub._joined
+        assert "!b:server" in stub._joined
+        assert "!fail:server" not in stub._joined
+
+    async def test_no_invites_is_noop(self) -> None:
+        stub = _InviteBotStub()
+        await MatrixBot._process_pending_invites(stub)
+        assert stub._joined == []
