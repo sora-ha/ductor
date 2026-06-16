@@ -159,6 +159,7 @@ def _button_label(model_id: str) -> str:
 def _chunk_buttons(
     model_ids: list[str],
     *,
+    provider: str,
     columns: int = 3,
 ) -> list[list[Button]]:
     rows: list[list[Button]] = []
@@ -168,7 +169,7 @@ def _chunk_buttons(
             [
                 Button(
                     text=_button_label(model_id),
-                    callback_data=f"ms:m:{model_id}",
+                    callback_data=f"ms:m:{provider}:{model_id}",
                 )
                 for model_id in chunk
             ]
@@ -231,7 +232,7 @@ async def model_selector_start(
     return SelectorResponse(text=f"{header}\n\n{t('model.pick_provider')}", buttons=keyboard)
 
 
-async def handle_model_callback(
+async def handle_model_callback(  # noqa: PLR0911
     orch: Orchestrator,
     key: SessionKey,
     data: str,
@@ -254,6 +255,10 @@ async def handle_model_callback(
         return await _build_model_step(payload, await _status_line(orch, key), codex_cache)
 
     if action == "m":
+        if extra:
+            return await _handle_model_selected(
+                orch, key, extra, codex_cache, provider_hint=payload
+            )
         return await _handle_model_selected(orch, key, payload, codex_cache)
 
     if action == "r":
@@ -268,17 +273,40 @@ async def handle_model_callback(
     return SelectorResponse(text=t("model.unknown_action"))
 
 
-async def switch_model(  # noqa: C901
+async def switch_model(  # noqa: C901, PLR0912, PLR0915
     orch: Orchestrator,
     key: SessionKey,
     model_id: str,
     *,
     reasoning_effort: str | None = None,
+    provider_hint: str | None = None,
 ) -> str:
     """Execute model switch: kill processes, preserve sessions, persist config.
 
     Shared by ``/model <name>`` text command and the wizard callbacks.
+    Provider names (e.g. ``cursor``, ``kimi``) are accepted and resolve to the
+    provider's default model.
     """
+    new_provider: str | None = None
+    if provider_hint:
+        new_provider = provider_hint
+        if model_id == "auto":
+            model_id = orch.default_model_for_provider(new_provider) or model_id
+    elif model_id == "auto":
+        # Resolve ambiguous "auto" against the configured/active provider rather
+        # than hardcoding Gemini.
+        resolved_model, new_provider = orch.resolve_runtime_target(model_id)
+        model_id = resolved_model
+    else:
+        directive = orch.resolve_session_directive(model_id)
+        if directive is not None:
+            new_provider, model_id = directive
+            if model_id == "auto":
+                model_id = orch.default_model_for_provider(new_provider) or model_id
+        else:
+            resolved_model, new_provider = orch.resolve_runtime_target(model_id)
+            model_id = resolved_model
+
     is_topic = key.topic_id is not None
     active_session = await orch._sessions.get_active(key)
 
@@ -290,7 +318,6 @@ async def switch_model(  # noqa: C901
         return t("model.already_running", model=model_id)
 
     old_provider = orch.models.provider_for(old)
-    new_provider = orch.models.provider_for(model_id)
     provider_changed = old_provider != new_provider
 
     validation_error = _validate_codex_reasoning_effort(orch, model_id, reasoning_effort)
@@ -392,14 +419,16 @@ async def _status_line(orch: Orchestrator, key: SessionKey) -> str:
     return current
 
 
-async def _build_model_step(
+async def _build_model_step(  # noqa: PLR0911
     provider: str,
     header: str,
     codex_cache: CodexModelCache | None = None,
 ) -> SelectorResponse:
     """Build the model selection keyboard for a provider."""
     if provider == "claude":
-        buttons = [Button(text=m.upper(), callback_data=f"ms:m:{m}") for m in CLAUDE_MODELS_ORDERED]
+        buttons = [
+            Button(text=m.upper(), callback_data=f"ms:m:claude:{m}") for m in CLAUDE_MODELS_ORDERED
+        ]
         keyboard = ButtonGrid(
             rows=[
                 buttons,
@@ -421,13 +450,15 @@ async def _build_model_step(
                 buttons=keyboard,
             )
 
-        gemini_rows = _chunk_buttons(gemini_models)
+        gemini_rows = _chunk_buttons(gemini_models, provider="gemini")
         gemini_rows.append([Button(text=t("model.btn_back"), callback_data="ms:b:root")])
         keyboard = ButtonGrid(rows=gemini_rows)
         return SelectorResponse(text=f"{header}\n\n{t('model.select_gemini')}", buttons=keyboard)
 
     if provider == "antigravity":
-        antigravity_rows = _chunk_buttons(_antigravity_models_for_selector(), columns=1)
+        antigravity_rows = _chunk_buttons(
+            _antigravity_models_for_selector(), provider="antigravity", columns=1
+        )
         antigravity_rows.append([Button(text=t("model.btn_back"), callback_data="ms:b:root")])
         keyboard = ButtonGrid(rows=antigravity_rows)
         return SelectorResponse(
@@ -436,8 +467,18 @@ async def _build_model_step(
 
     if provider == "kimi":
         rows = [
-            [Button(text=DEFAULT_KIMI_MODEL, callback_data=f"ms:m:{DEFAULT_KIMI_MODEL}")],
-            [Button(text="kimi-k2-0905-preview", callback_data="ms:m:kimi-k2-0905-preview")],
+            [
+                Button(
+                    text=DEFAULT_KIMI_MODEL,
+                    callback_data=f"ms:m:kimi:{DEFAULT_KIMI_MODEL}",
+                )
+            ],
+            [
+                Button(
+                    text="kimi-k2-0905-preview",
+                    callback_data="ms:m:kimi:kimi-k2-0905-preview",
+                )
+            ],
             [Button(text=t("model.btn_back"), callback_data="ms:b:root")],
         ]
         keyboard = ButtonGrid(rows=rows)
@@ -446,14 +487,19 @@ async def _build_model_step(
     if provider == "cursor":
         cursor_models = get_cursor_models()
         if cursor_models:
-            cursor_rows = _chunk_buttons(sorted(cursor_models))
+            cursor_rows = _chunk_buttons(sorted(cursor_models), provider="cursor")
         else:
             cursor_rows = [
-                [Button(text=DEFAULT_CURSOR_MODEL, callback_data=f"ms:m:{DEFAULT_CURSOR_MODEL}")],
+                [
+                    Button(
+                        text=DEFAULT_CURSOR_MODEL,
+                        callback_data=f"ms:m:cursor:{DEFAULT_CURSOR_MODEL}",
+                    )
+                ],
                 [
                     Button(
                         text="composer-2.5-fast",
-                        callback_data="ms:m:composer-2.5-fast",
+                        callback_data="ms:m:cursor:composer-2.5-fast",
                     )
                 ],
             ]
@@ -471,12 +517,12 @@ async def _build_model_step(
         )
         return SelectorResponse(text=f"{header}\n\n{t('model.no_codex')}", buttons=keyboard)
 
-    rows: list[list[Button]] = [
-        [Button(text=m.display_name, callback_data=f"ms:m:{m.id}")] for m in codex_models
+    codex_rows: list[list[Button]] = [
+        [Button(text=m.display_name, callback_data=f"ms:m:codex:{m.id}")] for m in codex_models
     ]
-    rows.append([Button(text=t("model.btn_back"), callback_data="ms:b:root")])
+    codex_rows.append([Button(text=t("model.btn_back"), callback_data="ms:b:root")])
 
-    keyboard = ButtonGrid(rows=rows)
+    keyboard = ButtonGrid(rows=codex_rows)
     return SelectorResponse(text=f"{header}\n\n{t('model.select_codex')}", buttons=keyboard)
 
 
@@ -485,12 +531,14 @@ async def _handle_model_selected(
     key: SessionKey,
     model_id: str,
     codex_cache: CodexModelCache | None = None,
+    *,
+    provider_hint: str | None = None,
 ) -> SelectorResponse:
     """Handle a model button press. Codex shows reasoning; other providers switch directly."""
-    provider = orch.models.provider_for(model_id)
+    provider = provider_hint or orch.models.provider_for(model_id)
 
     if provider in ("claude", "gemini", "antigravity", "kimi", "cursor"):
-        result = await switch_model(orch, key, model_id)
+        result = await switch_model(orch, key, model_id, provider_hint=provider_hint)
         return SelectorResponse(text=result)
 
     # Use cache instead of live discovery

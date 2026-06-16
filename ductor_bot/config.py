@@ -14,6 +14,7 @@ NULLISH_TEXT_VALUES: frozenset[str] = frozenset({"null", "none"})
 DEFAULT_EMPTY_GEMINI_API_KEY: str = "null"
 DEFAULT_KIMI_MODEL: str = "kimi-code/kimi-for-coding"
 DEFAULT_CURSOR_MODEL: str = "auto"
+DEFAULT_GEMINI_MODEL: str = "auto"
 
 # Intentional bind-all: the API is designed for private-network use (Tailscale).
 # Public exposure is gated by ``allow_public`` + a prominent warning at startup.

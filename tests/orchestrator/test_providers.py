@@ -7,13 +7,13 @@ from unittest.mock import MagicMock
 import pytest
 
 from ductor_bot.config import (
-    AgentConfig,
     DEFAULT_CURSOR_MODEL,
+    DEFAULT_GEMINI_MODEL,
     DEFAULT_KIMI_MODEL,
+    AgentConfig,
     reset_cursor_models,
     reset_gemini_models,
     reset_kimi_models,
-    set_cursor_models,
     set_gemini_models,
 )
 from ductor_bot.orchestrator.providers import ProviderManager
@@ -68,11 +68,11 @@ class TestResolveRuntimeTarget:
         assert model == "haiku"
         assert provider == "claude"
 
-    def test_gemini_model(self) -> None:
+    def test_auto_resolves_to_configured_claude_default(self) -> None:
         pm = _pm()
         model, provider = pm.resolve_runtime_target("auto")
-        assert model == "auto"
-        assert provider == "gemini"
+        assert model == "sonnet"
+        assert provider == "claude"
 
     def test_kimi_model(self) -> None:
         pm = _pm()
@@ -104,6 +104,12 @@ class TestResolveRuntimeTarget:
         assert model == "auto"
         assert provider == "cursor"
 
+    def test_auto_resolves_to_configured_kimi_default(self) -> None:
+        pm = _pm(model="auto", provider="kimi")
+        model, provider = pm.resolve_runtime_target()
+        assert model == "kimi-code/kimi-for-coding"
+        assert provider == "kimi"
+
 
 # ---------------------------------------------------------------------------
 # resolve_session_directive
@@ -123,7 +129,7 @@ class TestResolveSessionDirective:
         result = pm.resolve_session_directive("gemini")
         assert result is not None
         assert result[0] == "gemini"
-        assert result[1] == ""  # gemini default is empty
+        assert result[1] == DEFAULT_GEMINI_MODEL
 
     def test_provider_name_codex(self) -> None:
         pm = _pm()
@@ -232,7 +238,7 @@ class TestDefaultModelForProvider:
 
     def test_gemini(self) -> None:
         pm = _pm()
-        assert pm.default_model_for_provider("gemini") == ""
+        assert pm.default_model_for_provider("gemini") == DEFAULT_GEMINI_MODEL
 
     def test_kimi(self) -> None:
         pm = _pm()

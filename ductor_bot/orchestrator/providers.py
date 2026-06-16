@@ -11,6 +11,7 @@ from ductor_bot.config import (
     ANTIGRAVITY_MODELS,
     CLAUDE_MODELS,
     DEFAULT_CURSOR_MODEL,
+    DEFAULT_GEMINI_MODEL,
     DEFAULT_KIMI_MODEL,
     ModelRegistry,
     get_antigravity_models,
@@ -176,10 +177,14 @@ class ProviderManager:
         """Resolve requested model to the effective ``(model, provider)`` pair."""
         model_name = requested_model or self._config.model
         provider = self._models.provider_for(model_name)
-        # Cursor's default model is "auto", which collides with Gemini's
-        # "auto" alias. When the user explicitly configured Cursor, prefer it.
-        if model_name == "auto" and self._config.provider == "cursor":
-            provider = "cursor"
+        # "auto" is an ambiguous alias (Gemini uses it, Cursor uses it as the
+        # default model). When the configured provider is known, resolve it to
+        # that provider's default model instead of hardcoding Gemini.
+        if model_name == "auto" and self._config.provider:
+            provider = self._config.provider
+            default_model = self.default_model_for_provider(provider)
+            if default_model and default_model != "auto":
+                model_name = default_model
         return model_name, provider
 
     def is_known_model(self, candidate: str) -> bool:
@@ -191,7 +196,7 @@ class ProviderManager:
         codex = self._codex_cache_fn() if self._codex_cache_fn else None
         return bool(codex and codex.validate_model(candidate))
 
-    def default_model_for_provider(self, provider: str) -> str:
+    def default_model_for_provider(self, provider: str) -> str:  # noqa: PLR0911
         """Return the default model ID for a provider, or empty string if unknown."""
         if provider == "claude":
             return self._config.model if self._config.provider == "claude" else "sonnet"
@@ -203,7 +208,7 @@ class ProviderManager:
                         return m.id
             return ""
         if provider == "gemini":
-            return ""
+            return DEFAULT_GEMINI_MODEL
         if provider == "antigravity":
             return "antigravity-default"
         if provider == "kimi":

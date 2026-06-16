@@ -132,8 +132,8 @@ async def test_start_one_provider_claude_includes_1m_variants(orch: Orchestrator
     callbacks = [btn.callback_data for row in resp.buttons.rows for btn in row]
     assert "SONNET[1M]" in labels
     assert "OPUS[1M]" in labels
-    assert "ms:m:opus[1m]" in callbacks
-    assert "ms:m:sonnet[1m]" in callbacks
+    assert "ms:m:claude:opus[1m]" in callbacks
+    assert "ms:m:claude:sonnet[1m]" in callbacks
 
 
 async def test_start_one_provider_codex(orch: Orchestrator) -> None:
@@ -302,17 +302,19 @@ async def test_callback_model_antigravity_switches_without_reasoning_step(
 
 async def test_callback_model_kimi_switches_without_reasoning_step(orch: Orchestrator) -> None:
     object.__setattr__(orch._process_registry, "kill_all", AsyncMock(return_value=0))
-    resp = await handle_model_callback(orch, SessionKey(chat_id=1), "ms:m:kimi-code/kimi-for-coding")
+    resp = await handle_model_callback(
+        orch, SessionKey(chat_id=1), "ms:m:kimi:kimi-code/kimi-for-coding"
+    )
     assert "kimi-code/kimi-for-coding" in resp.text
     assert "Thinking level" not in resp.text
     assert resp.buttons is None
-    assert orch._config.model == "antigravity-default"
-    assert orch._config.provider == "antigravity"
+    assert orch._config.model == "kimi-code/kimi-for-coding"
+    assert orch._config.provider == "kimi"
 
 
 async def test_callback_model_cursor_switches_without_reasoning_step(orch: Orchestrator) -> None:
     object.__setattr__(orch._process_registry, "kill_all", AsyncMock(return_value=0))
-    resp = await handle_model_callback(orch, SessionKey(chat_id=1), "ms:m:auto")
+    resp = await handle_model_callback(orch, SessionKey(chat_id=1), "ms:m:cursor:auto")
     assert "auto" in resp.text
     assert "Thinking level" not in resp.text
     assert resp.buttons is None
@@ -429,6 +431,26 @@ async def test_switch_model_provider_change(orch: Orchestrator) -> None:
     assert "Provider:" in result
     assert orch._config.provider == "codex"
     mock_reset.assert_not_called()
+
+
+async def test_switch_model_by_provider_name(orch: Orchestrator) -> None:
+    """/model <provider-name> resolves to the provider's default model."""
+    object.__setattr__(orch._process_registry, "kill_all", AsyncMock(return_value=0))
+    result = await switch_model(orch, SessionKey(chat_id=1), "cursor")
+    assert "Provider: claude -> cursor" in result
+    assert orch._config.provider == "cursor"
+    assert orch._config.model == "auto"
+
+
+async def test_switch_model_auto_respects_configured_provider(orch: Orchestrator) -> None:
+    """/model auto stays on the configured provider instead of jumping to Gemini."""
+    object.__setattr__(orch._process_registry, "kill_all", AsyncMock(return_value=0))
+    orch._config.provider = "kimi"
+    orch._config.model = "kimi-code/kimi-for-coding"
+    result = await switch_model(orch, SessionKey(chat_id=1), "auto")
+    assert "kimi-code/kimi-for-coding" in result
+    assert orch._config.provider == "kimi"
+    assert orch._config.model == "kimi-code/kimi-for-coding"
 
 
 async def test_switch_model_shows_resume_hint_same_provider(orch: Orchestrator) -> None:
