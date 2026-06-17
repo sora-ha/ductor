@@ -9,7 +9,7 @@ from ductor_bot.cli.base import BaseCLI, CLIConfig
 logger = logging.getLogger(__name__)
 
 
-def create_cli(config: CLIConfig) -> BaseCLI:
+def create_cli(config: CLIConfig) -> BaseCLI:  # noqa: PLR0911
     """Create a CLI backend instance based on ``config.provider``."""
     logger.debug("CLI factory creating provider=%s", config.provider)
     if config.provider == "gemini":
@@ -36,6 +36,11 @@ def create_cli(config: CLIConfig) -> BaseCLI:
         from ductor_bot.cli.cursor_provider import CursorCLI
 
         return CursorCLI(config)
+
+    if config.provider == "reasonix":
+        from ductor_bot.cli.reasonix_provider import ReasonixCLI
+
+        return ReasonixCLI(config)
 
     from ductor_bot.cli.claude_provider import ClaudeCodeCLI
 

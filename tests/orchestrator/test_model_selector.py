@@ -29,11 +29,13 @@ _AUTHED_GEMINI = AuthResult("gemini", AuthStatus.AUTHENTICATED)
 _AUTHED_ANTIGRAVITY = AuthResult("antigravity", AuthStatus.AUTHENTICATED)
 _AUTHED_KIMI = AuthResult("kimi", AuthStatus.AUTHENTICATED)
 _AUTHED_CURSOR = AuthResult("cursor", AuthStatus.AUTHENTICATED)
+_AUTHED_REASONIX = AuthResult("reasonix", AuthStatus.AUTHENTICATED)
 _NOT_FOUND_CLAUDE = AuthResult("claude", AuthStatus.NOT_FOUND)
 _NOT_FOUND_CODEX = AuthResult("codex", AuthStatus.NOT_FOUND)
 _NOT_FOUND_GEMINI = AuthResult("gemini", AuthStatus.NOT_FOUND)
 _NOT_FOUND_KIMI = AuthResult("kimi", AuthStatus.NOT_FOUND)
 _NOT_FOUND_CURSOR = AuthResult("cursor", AuthStatus.NOT_FOUND)
+_NOT_FOUND_REASONIX = AuthResult("reasonix", AuthStatus.NOT_FOUND)
 
 _CODEX_MODELS = [
     CodexModelInfo(
@@ -227,6 +229,22 @@ async def test_start_one_provider_antigravity(orch: Orchestrator) -> None:
     assert "antigravity-default" in labels
 
 
+async def test_start_one_provider_reasonix(orch: Orchestrator) -> None:
+    with _patch_auth(
+        {
+            "claude": _NOT_FOUND_CLAUDE,
+            "codex": _NOT_FOUND_CODEX,
+            "gemini": _NOT_FOUND_GEMINI,
+            "reasonix": _AUTHED_REASONIX,
+        }
+    ):
+        resp = await model_selector_start(orch, SessionKey(chat_id=1))
+    assert "Select Reasonix model" in resp.text
+    assert resp.buttons is not None
+    labels = [btn.text for row in resp.buttons.rows for btn in row]
+    assert "deepseek-v4-flash" in labels
+
+
 # -- handle_model_callback: provider selection --
 
 
@@ -281,6 +299,14 @@ async def test_callback_provider_cursor(orch: Orchestrator) -> None:
     assert "composer-2.5-fast" in labels
 
 
+async def test_callback_provider_reasonix(orch: Orchestrator) -> None:
+    resp = await handle_model_callback(orch, SessionKey(chat_id=1), "ms:p:reasonix")
+    assert "Select Reasonix model" in resp.text
+    assert resp.buttons is not None
+    labels = [btn.text for row in resp.buttons.rows for btn in row]
+    assert "deepseek-v4-flash" in labels
+
+
 # -- handle_model_callback: model selection --
 
 
@@ -320,6 +346,20 @@ async def test_callback_model_cursor_switches_without_reasoning_step(orch: Orche
     assert resp.buttons is None
     assert orch._config.model == "auto"
     assert orch._config.provider == "cursor"
+
+
+async def test_callback_model_reasonix_switches_without_reasoning_step(
+    orch: Orchestrator,
+) -> None:
+    object.__setattr__(orch._process_registry, "kill_all", AsyncMock(return_value=0))
+    resp = await handle_model_callback(
+        orch, SessionKey(chat_id=1), "ms:m:reasonix:deepseek-v4-flash"
+    )
+    assert "deepseek-v4-flash" in resp.text
+    assert "Thinking level" not in resp.text
+    assert resp.buttons is None
+    assert orch._config.model == "deepseek-v4-flash"
+    assert orch._config.provider == "reasonix"
 
 
 async def test_callback_model_codex_shows_reasoning(orch: Orchestrator) -> None:
@@ -440,6 +480,14 @@ async def test_switch_model_by_provider_name(orch: Orchestrator) -> None:
     assert "Provider: claude -> cursor" in result
     assert orch._config.provider == "cursor"
     assert orch._config.model == "auto"
+
+
+async def test_switch_model_by_provider_name_reasonix(orch: Orchestrator) -> None:
+    object.__setattr__(orch._process_registry, "kill_all", AsyncMock(return_value=0))
+    result = await switch_model(orch, SessionKey(chat_id=1), "reasonix")
+    assert "Provider: claude -> reasonix" in result
+    assert orch._config.provider == "reasonix"
+    assert orch._config.model == "deepseek-v4-flash"
 
 
 async def test_switch_model_auto_respects_configured_provider(orch: Orchestrator) -> None:

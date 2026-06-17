@@ -27,6 +27,7 @@ from ductor_bot.cli.auth import (
     check_cursor_auth,
     check_gemini_auth,
     check_kimi_auth,
+    check_reasonix_auth,
 )
 from ductor_bot.config import DEFAULT_EMPTY_GEMINI_API_KEY, AgentConfig, deep_merge_config
 from ductor_bot.i18n import t_rich
@@ -116,6 +117,7 @@ def _check_clis(console: Console) -> None:
         ("antigravity", check_antigravity_auth),
         ("kimi", check_kimi_auth),
         ("cursor", check_cursor_auth),
+        ("reasonix", check_reasonix_auth),
     )
     for name, fn in probes:
         try:
@@ -276,10 +278,7 @@ def _ask_matrix_homeserver(console: Console) -> str:
         if url is None:
             _abort()
         url = url.strip().rstrip("/")
-        if (
-            url.startswith(("https://", "http://"))
-            and len(url) > len("https://")
-        ):
+        if url.startswith(("https://", "http://")) and len(url) > len("https://"):
             return url
         console.print(t_rich("wizard.matrix.homeserver.error"))
 

@@ -7,10 +7,11 @@ from unittest.mock import patch
 from ductor_bot.cli.base import CLIConfig
 from ductor_bot.cli.claude_provider import ClaudeCodeCLI
 from ductor_bot.cli.codex_provider import CodexCLI
+from ductor_bot.cli.cursor_provider import CursorCLI
 from ductor_bot.cli.factory import create_cli
 from ductor_bot.cli.gemini_provider import GeminiCLI
 from ductor_bot.cli.kimi_provider import KimiCLI
-from ductor_bot.cli.cursor_provider import CursorCLI
+from ductor_bot.cli.reasonix_provider import ReasonixCLI
 
 
 def test_create_cli_returns_kimi() -> None:
@@ -47,3 +48,9 @@ def test_create_cli_returns_cursor() -> None:
     with patch("ductor_bot.cli.cursor_provider.which", return_value="/usr/bin/cursor"):
         cli = create_cli(CLIConfig(provider="cursor"))
     assert isinstance(cli, CursorCLI)
+
+
+def test_create_cli_returns_reasonix() -> None:
+    with patch("ductor_bot.cli.reasonix_provider.which", return_value="/usr/bin/reasonix"):
+        cli = create_cli(CLIConfig(provider="reasonix"))
+    assert isinstance(cli, ReasonixCLI)

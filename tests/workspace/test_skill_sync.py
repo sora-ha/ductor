@@ -965,7 +965,7 @@ def test_bundled_docker_replaces_old_symlink(tmp_path: Path) -> None:
 # Group: skill sync toggle config (#141)
 # ---------------------------------------------------------------------------
 
-_ALL_PROVIDERS = frozenset({"claude", "codex", "gemini", "kimi", "cursor"})
+_ALL_PROVIDERS = frozenset({"claude", "codex", "gemini", "kimi", "cursor", "reasonix"})
 
 
 def test_load_skill_sync_config_missing_file(tmp_path: Path) -> None:
@@ -994,18 +994,25 @@ def test_load_skill_sync_config_per_provider_opt_out(tmp_path: Path) -> None:
     cfg.write_text(json.dumps({"skills": {"sync": {"codex": False}}}))
     enabled, providers = _load_skill_sync_config(cfg)
     assert enabled is True
-    assert providers == frozenset({"claude", "gemini"})
+    assert providers == frozenset({"claude", "gemini", "kimi", "cursor", "reasonix"})
 
 
 def test_cli_skill_dirs_filters_disabled_provider(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     fake_home = tmp_path / "home"
-    for name in (".claude", ".codex", ".gemini", ".kimi", ".cursor"):
+    for name in (".claude", ".codex", ".gemini", ".kimi", ".cursor", ".reasonix"):
         (fake_home / name).mkdir(parents=True)
     monkeypatch.delenv("CODEX_HOME", raising=False)
     with patch("ductor_bot.workspace.skill_sync.Path.home", return_value=fake_home):
-        assert set(_cli_skill_dirs(None)) == {"claude", "codex", "gemini", "kimi", "cursor"}
+        assert set(_cli_skill_dirs(None)) == {
+            "claude",
+            "codex",
+            "gemini",
+            "kimi",
+            "cursor",
+            "reasonix",
+        }
         assert set(_cli_skill_dirs(frozenset({"claude", "gemini"}))) == {"claude", "gemini"}
         assert _cli_skill_dirs(frozenset()) == {}
 

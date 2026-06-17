@@ -14,6 +14,7 @@ NULLISH_TEXT_VALUES: frozenset[str] = frozenset({"null", "none"})
 DEFAULT_EMPTY_GEMINI_API_KEY: str = "null"
 DEFAULT_KIMI_MODEL: str = "kimi-code/kimi-for-coding"
 DEFAULT_CURSOR_MODEL: str = "auto"
+DEFAULT_REASONIX_MODEL: str = "deepseek-v4-flash"
 DEFAULT_GEMINI_MODEL: str = "auto"
 
 # Intentional bind-all: the API is designed for private-network use (Tailscale).
@@ -235,6 +236,7 @@ class CLIParametersConfig(BaseModel):
     antigravity: list[str] = Field(default_factory=list)
     kimi: list[str] = Field(default_factory=list)
     cursor: list[str] = Field(default_factory=list)
+    reasonix: list[str] = Field(default_factory=list)
 
 
 class MatrixConfig(BaseModel):
@@ -411,6 +413,7 @@ class SkillSyncProviders(BaseModel):
     gemini: bool = True
     kimi: bool = True
     cursor: bool = True
+    reasonix: bool = True
 
 
 class SkillsConfig(BaseModel):
@@ -607,10 +610,15 @@ _GEMINI_ALIASES: frozenset[str] = frozenset({"auto", "pro", "flash", "flash-lite
 ANTIGRAVITY_MODELS_ORDERED: tuple[str, ...] = ("antigravity-default",)
 ANTIGRAVITY_MODELS: frozenset[str] = frozenset(ANTIGRAVITY_MODELS_ORDERED)
 
+# Reasonix supports arbitrary DeepSeek model IDs; we expose the default alias.
+REASONIX_MODELS_ORDERED: tuple[str, ...] = ("deepseek-v4-flash",)
+REASONIX_MODELS: frozenset[str] = frozenset(REASONIX_MODELS_ORDERED)
+
 _runtime_gemini: list[frozenset[str]] = [frozenset()]
 _runtime_antigravity: list[frozenset[str]] = [frozenset()]
 _runtime_kimi: list[frozenset[str]] = [frozenset()]
 _runtime_cursor: list[frozenset[str]] = [frozenset()]
+_runtime_reasonix: list[frozenset[str]] = [frozenset()]
 
 
 class ModelRegistry:
@@ -651,6 +659,12 @@ class ModelRegistry:
             provider = "kimi"
         elif model_id in _runtime_cursor[0] or model_id.startswith("composer-"):
             provider = "cursor"
+        elif (
+            model_id in REASONIX_MODELS
+            or model_id in _runtime_reasonix[0]
+            or model_id.startswith(("reasonix-", "deepseek-"))
+        ):
+            provider = "reasonix"
         else:
             provider = "codex"
         return provider
@@ -734,3 +748,23 @@ def set_cursor_models(models: frozenset[str]) -> None:
 def reset_cursor_models() -> None:
     """Clear runtime Cursor models. For test teardown only."""
     _runtime_cursor[0] = frozenset()
+
+
+def get_reasonix_models() -> frozenset[str]:
+    """Return dynamically discovered Reasonix models (may be empty)."""
+    return _runtime_reasonix[0]
+
+
+def set_reasonix_models(models: frozenset[str]) -> None:
+    """Set runtime Reasonix models discovered externally.
+
+    Refuses to overwrite with an empty set to prevent cache wipe.
+    """
+    if not models:
+        return
+    _runtime_reasonix[0] = models
+
+
+def reset_reasonix_models() -> None:
+    """Clear runtime Reasonix models. For test teardown only."""
+    _runtime_reasonix[0] = frozenset()

@@ -504,6 +504,57 @@ def check_cursor_auth() -> AuthResult:
     return result
 
 
+def _reasonix_cli_path() -> str | None:
+    """Locate the Reasonix binary, preferring PATH and falling back to nvm."""
+    path = which("reasonix")
+    if path:
+        return path
+    fallback = Path.home() / ".nvm" / "versions" / "node" / "v24.16.0" / "bin" / "reasonix"
+    if fallback.is_file():
+        return str(fallback)
+    return None
+
+
+def _reasonix_auth_source() -> tuple[Path | None, datetime | None]:
+    """Return Reasonix config-based auth source if an API key is stored."""
+    config_path = Path.home() / ".reasonix" / "config.json"
+    if not config_path.is_file():
+        return None, None
+    try:
+        data = json.loads(config_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError, TypeError):
+        return None, None
+    if not isinstance(data, dict):
+        return None, None
+    api_key = data.get("apiKey")
+    if isinstance(api_key, str) and _normalize_key_like_value(api_key):
+        return config_path, datetime.fromtimestamp(config_path.stat().st_mtime, tz=UTC)
+    return None, None
+
+
+def check_reasonix_auth() -> AuthResult:
+    """Check Reasonix CLI auth via executable presence, env key, or config file."""
+    if _reasonix_cli_path() is None:
+        result = AuthResult("reasonix", AuthStatus.NOT_FOUND)
+        logger.debug("Auth check provider=%s status=%s", result.provider, result.status)
+        return result
+
+    if _has_nonempty_env("REASONIX_API_KEY") or _has_nonempty_env("DEEPSEEK_API_KEY"):
+        result = AuthResult("reasonix", AuthStatus.AUTHENTICATED)
+        logger.debug("Auth check provider=%s status=%s (env key)", result.provider, result.status)
+        return result
+
+    auth_file, auth_age = _reasonix_auth_source()
+    if auth_file is not None and auth_age is not None:
+        result = AuthResult("reasonix", AuthStatus.AUTHENTICATED, auth_file, auth_age)
+        logger.debug("Auth check provider=%s status=%s", result.provider, result.status)
+        return result
+
+    result = AuthResult("reasonix", AuthStatus.INSTALLED)
+    logger.debug("Auth check provider=%s status=%s", result.provider, result.status)
+    return result
+
+
 def _cursor_cli_logged_in(cursor_cli: str) -> bool:
     """Run ``cursor agent status`` / ``whoami`` and return True when logged in."""
     for subcmd in ("status", "whoami"):
@@ -531,7 +582,7 @@ def _kimi_share_dir() -> Path:
     return Path.home() / ".kimi"
 
 
-def _kimi_auth_source() -> tuple[Path | None, datetime | None]:
+def _kimi_auth_source() -> tuple[Path | None, datetime | None]:  # noqa: C901
     # Kimi Code CLI stores OAuth/session credentials under its own share dirs.
     # The legacy Moonshot CLI used ~/.kimi/{credentials,config.toml}.
     share_dirs = [
@@ -582,6 +633,7 @@ _CHECKERS: dict[str, Callable[[], AuthResult]] = {
     "antigravity": check_antigravity_auth,
     "kimi": check_kimi_auth,
     "cursor": check_cursor_auth,
+    "reasonix": check_reasonix_auth,
 }
 
 

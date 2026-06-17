@@ -150,6 +150,7 @@ Notes:
 | `antigravity` | `list[str]` | `[]` | Extra args appended to Antigravity (`agy`) CLI command |
 | `kimi` | `list[str]` | `[]` | Extra args appended to Kimi (`kimi`) CLI command |
 | `cursor` | `list[str]` | `[]` | Extra args appended to Cursor (`cursor agent`) CLI command |
+| `reasonix` | `list[str]` | `[]` | Extra args appended to Reasonix (`reasonix run`) CLI command |
 
 Used by `CLIServiceConfig` for main-chat calls.
 
@@ -222,7 +223,7 @@ Cron-only field:
 Behavior notes:
 
 - missing execution fields fall back to global config via `resolve_cli_config()`,
-- `provider` override supports `claude`, `codex`, `gemini`, `kimi`, and `cursor` (not `antigravity`),
+- `provider` override supports `claude`, `codex`, `gemini`, `kimi`, `cursor`, and `reasonix` (not `antigravity`),
 - `dependency` is global across cron + webhook `cron_task` runs (shared `DependencyQueue`),
 - quiet-hour checks run only when per-task quiet fields are set (no fallback to global heartbeat quiet settings).
 
@@ -502,6 +503,7 @@ Runtime note (`Orchestrator._start_api_server` + `ApiServer._authenticate`):
 | `gemini` | `bool` | `true` | Include `~/.gemini/skills` in cross-tool sync |
 | `kimi` | `bool` | `true` | Include `~/.kimi/skills` in cross-tool sync |
 | `cursor` | `bool` | `true` | Include `~/.cursor/skills` in cross-tool sync |
+| `reasonix` | `bool` | `true` | Include `~/.reasonix/skills` in cross-tool sync |
 
 Toggles are read live from `config.json` on each skill-sync tick (independent of `ConfigReloader`), so changes take effect within one sync interval without restart. A disabled provider is dropped from the sync, so its skill dir is neither linked into nor used as a source; existing ductor-created links are not actively removed (cleared on shutdown cleanup or manually).
 

@@ -153,6 +153,7 @@ class Orchestrator:
                 antigravity_cli_parameters=tuple(config.cli_parameters.antigravity),
                 kimi_cli_parameters=tuple(config.cli_parameters.kimi),
                 cursor_cli_parameters=tuple(config.cli_parameters.cursor),
+                reasonix_cli_parameters=tuple(config.cli_parameters.reasonix),
                 agent_name=agent_name,
                 interagent_port=interagent_port,
                 transcribe_command=config.transcription.audio_command,
@@ -723,6 +724,7 @@ class Orchestrator:
                     antigravity_cli_parameters=tuple(config.cli_parameters.antigravity),
                     kimi_cli_parameters=tuple(config.cli_parameters.kimi),
                     cursor_cli_parameters=tuple(config.cli_parameters.cursor),
+                    reasonix_cli_parameters=tuple(config.cli_parameters.reasonix),
                     transcribe_command=config.transcription.audio_command,
                     video_transcribe_command=config.transcription.video_command,
                 )

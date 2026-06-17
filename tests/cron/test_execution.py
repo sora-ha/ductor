@@ -18,6 +18,7 @@ from ductor_bot.cron.execution import (
     parse_cursor_result,
     parse_gemini_result,
     parse_kimi_result,
+    parse_reasonix_result,
     parse_result,
 )
 
@@ -238,6 +239,56 @@ class TestBuildCmd:
         with patch("ductor_bot.cron.execution.which", return_value=None):
             assert build_cmd(exec_config, "hello") is None
 
+    def test_reasonix_provider(self) -> None:
+        exec_config = TaskExecutionConfig(
+            provider="reasonix",
+            model="deepseek-v4-flash",
+            reasoning_effort="high",
+            cli_parameters=["--no-config"],
+            permission_mode="bypassPermissions",
+            working_dir="/tmp",
+            file_access="all",
+        )
+        with patch("ductor_bot.cron.execution.which", return_value="/usr/bin/reasonix"):
+            result = build_cmd(exec_config, "hello")
+        assert result is not None
+        assert result.cmd[0] == "/usr/bin/reasonix"
+        assert "run" in result.cmd
+        assert "--no-config" in result.cmd
+        assert "--model" in result.cmd
+        assert "deepseek-v4-flash" in result.cmd
+        assert "--effort" in result.cmd
+        assert "high" in result.cmd
+        assert result.cmd[-1] == "hello"
+
+    def test_reasonix_ignores_default_effort(self) -> None:
+        exec_config = TaskExecutionConfig(
+            provider="reasonix",
+            model="deepseek-v4-flash",
+            reasoning_effort="medium",
+            cli_parameters=[],
+            permission_mode="bypassPermissions",
+            working_dir="/tmp",
+            file_access="all",
+        )
+        with patch("ductor_bot.cron.execution.which", return_value="/usr/bin/reasonix"):
+            result = build_cmd(exec_config, "hello")
+        assert result is not None
+        assert "--effort" not in result.cmd
+
+    def test_reasonix_returns_none_when_cli_missing(self) -> None:
+        exec_config = TaskExecutionConfig(
+            provider="reasonix",
+            model="deepseek-v4-flash",
+            reasoning_effort="",
+            cli_parameters=[],
+            permission_mode="plan",
+            working_dir="/tmp",
+            file_access="all",
+        )
+        with patch("ductor_bot.cron.execution._find_reasonix_cli", return_value=None):
+            assert build_cmd(exec_config, "hello") is None
+
 
 class TestExecuteOneShotStdin:
     """Test execute_one_shot stdin_input parameter."""
@@ -383,7 +434,9 @@ class TestParseKimi:
         assert parse_kimi_result(b"") == ""
 
     def test_assistant_lines(self) -> None:
-        data = b'{"role": "assistant", "content": "Hello "}\n{"role": "assistant", "content": "world"}'
+        data = (
+            b'{"role": "assistant", "content": "Hello "}\n{"role": "assistant", "content": "world"}'
+        )
         assert parse_kimi_result(data) == "Hello world"
 
     def test_non_json_returns_raw(self) -> None:
@@ -426,8 +479,34 @@ class TestParseResult:
         data = b'{"type":"result","subtype":"success","result":"Cursor result"}'
         assert parse_result("cursor", data) == "Cursor result"
 
+    def test_dispatches_to_reasonix_parser(self) -> None:
+        raw = (
+            "⌘ MCP · filesystem      ↻ handshake…\n"
+            "Reasonix result\n"
+            "— turns:1 cache:99.9% cost:$0.001\n"
+        )
+        assert parse_result("reasonix", raw.encode()) == "Reasonix result"
+
     def test_unknown_provider_falls_back_to_claude(self) -> None:
         assert parse_result("unknown", b'{"result":"fallback"}') == "fallback"
+
+
+class TestParseReasonix:
+    def test_empty_bytes(self) -> None:
+        assert parse_reasonix_result(b"") == ""
+
+    def test_strips_progress_and_footer(self) -> None:
+        raw = (
+            "⌘ MCP · filesystem      ↻ handshake…\n"
+            "✓ connected\n"
+            "The answer is 42.\n"
+            "— turns:1 cache:99.9% cost:$0.001\n"
+        )
+        assert parse_reasonix_result(raw.encode()) == "The answer is 42."
+
+    def test_non_matching_returns_raw(self) -> None:
+        raw = b"Raw reasonix output"
+        assert parse_reasonix_result(raw) == "Raw reasonix output"
 
 
 class TestIndent:

@@ -10,6 +10,7 @@ from ductor_bot.config import (
     AgentConfig,
     reset_antigravity_models,
     reset_gemini_models,
+    reset_reasonix_models,
     set_gemini_models,
 )
 from ductor_bot.orchestrator.providers import ProviderManager
@@ -19,9 +20,11 @@ from ductor_bot.orchestrator.providers import ProviderManager
 def _reset_runtime_models():
     reset_gemini_models()
     reset_antigravity_models()
+    reset_reasonix_models()
     yield
     reset_gemini_models()
     reset_antigravity_models()
+    reset_reasonix_models()
 
 
 def _make_provider_manager(
@@ -101,3 +104,10 @@ class TestBuildProviderInfo:
         pm, obs = _make_provider_manager(frozenset())
         info = pm.build_provider_info(obs)
         assert info == []
+
+    def test_reasonix_models(self) -> None:
+        pm, obs = _make_provider_manager(frozenset({"reasonix"}))
+        info = pm.build_provider_info(obs)
+        assert info[0]["id"] == "reasonix"
+        assert info[0]["name"] == "Reasonix"
+        assert info[0]["models"] == ["deepseek-v4-flash"]

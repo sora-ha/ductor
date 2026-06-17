@@ -173,6 +173,20 @@ def test_cli_parameters_for_cursor() -> None:
     assert cfg.cli_parameters_for_provider("cursor") == ["--verbose"]
 
 
+def test_cli_parameters_for_reasonix() -> None:
+    cfg = CLIServiceConfig(
+        working_dir="/tmp",
+        default_model="deepseek-v4-flash",
+        provider="reasonix",
+        max_turns=None,
+        max_budget_usd=None,
+        permission_mode="bypassPermissions",
+        reasonix_cli_parameters=("--no-config",),
+    )
+
+    assert cfg.cli_parameters_for_provider("reasonix") == ["--no-config"]
+
+
 async def test_stream_callbacks_dispatches_compact_boundary() -> None:
     """CompactBoundaryEvent fires on_compact_boundary and on_status(None), in order."""
     from ductor_bot.cli.service import _StreamCallbacks

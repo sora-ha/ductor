@@ -18,6 +18,8 @@ from ductor_bot.config import (
     deep_merge_config,
     reset_cursor_models,
     reset_gemini_models,
+    reset_reasonix_models,
+    set_reasonix_models,
     update_config_file,
 )
 
@@ -32,6 +34,11 @@ def _reset_gemini_models() -> None:
 @pytest.fixture(autouse=True)
 def _reset_cursor_models() -> None:
     reset_cursor_models()
+
+
+@pytest.fixture(autouse=True)
+def _reset_reasonix_models() -> None:
+    reset_reasonix_models()
 
 
 def test_agent_config_defaults() -> None:
@@ -183,6 +190,19 @@ def test_registry_provider_for_cursor() -> None:
     reg = ModelRegistry()
     assert reg.provider_for("auto") == "cursor"
     assert reg.provider_for("composer-2.5-fast") == "cursor"
+
+
+def test_registry_provider_for_reasonix() -> None:
+    reg = ModelRegistry()
+    assert reg.provider_for("deepseek-v4-flash") == "reasonix"
+    assert reg.provider_for("deepseek-v4-mini") == "reasonix"
+    assert reg.provider_for("reasonix-default") == "reasonix"
+
+
+def test_registry_provider_for_reasonix_runtime_models() -> None:
+    set_reasonix_models(frozenset({"deepseek-reasoner"}))
+    reg = ModelRegistry()
+    assert reg.provider_for("deepseek-reasoner") == "reasonix"
 
 
 def test_streaming_config_fields() -> None:

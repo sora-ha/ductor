@@ -13,9 +13,11 @@ from ductor_bot.config import (
     CLAUDE_MODELS_ORDERED,
     DEFAULT_CURSOR_MODEL,
     DEFAULT_KIMI_MODEL,
+    REASONIX_MODELS_ORDERED,
     get_antigravity_models,
     get_cursor_models,
     get_gemini_models,
+    get_reasonix_models,
     update_config_file_async,
 )
 from ductor_bot.i18n import t
@@ -151,6 +153,12 @@ def _antigravity_models_for_selector() -> list[str]:
     return [*ANTIGRAVITY_MODELS_ORDERED, *discovered]
 
 
+def _reasonix_models_for_selector() -> list[str]:
+    """Return the Reasonix default, then models discovered externally."""
+    discovered = sorted(get_reasonix_models())
+    return [*REASONIX_MODELS_ORDERED, *discovered]
+
+
 def _button_label(model_id: str) -> str:
     """Compact button label while preserving identity in callback data."""
     return model_id.removeprefix("gemini-").removeprefix("auto-")
@@ -226,6 +234,8 @@ async def model_selector_start(
         buttons.append(Button(text="KIMI", callback_data="ms:p:kimi"))
     if "cursor" in authed:
         buttons.append(Button(text="CURSOR", callback_data="ms:p:cursor"))
+    if "reasonix" in authed:
+        buttons.append(Button(text="REASONIX", callback_data="ms:p:reasonix"))
 
     provider_rows = [buttons[i : i + 2] for i in range(0, len(buttons), 2)]
     keyboard = ButtonGrid(rows=provider_rows)
@@ -511,6 +521,14 @@ async def _build_model_step(  # noqa: PLR0911
         keyboard = ButtonGrid(rows=cursor_rows)
         return SelectorResponse(text=f"{header}\n\n{t('model.select_cursor')}", buttons=keyboard)
 
+    if provider == "reasonix":
+        reasonix_rows = _chunk_buttons(
+            _reasonix_models_for_selector(), provider="reasonix", columns=1
+        )
+        reasonix_rows.append([Button(text=t("model.btn_back"), callback_data="ms:b:root")])
+        keyboard = ButtonGrid(rows=reasonix_rows)
+        return SelectorResponse(text=f"{header}\n\n{t('model.select_reasonix')}", buttons=keyboard)
+
     # Use cache instead of live discovery
     codex_models = codex_cache.models if codex_cache else []
     if not codex_models:
@@ -541,7 +559,7 @@ async def _handle_model_selected(
     """Handle a model button press. Codex shows reasoning; other providers switch directly."""
     provider = provider_hint or orch.models.provider_for(model_id)
 
-    if provider in ("claude", "gemini", "antigravity", "kimi", "cursor"):
+    if provider in ("claude", "gemini", "antigravity", "kimi", "cursor", "reasonix"):
         result = await switch_model(orch, key, model_id, provider_hint=provider_hint)
         return SelectorResponse(text=result)
 

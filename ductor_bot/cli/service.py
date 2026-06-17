@@ -108,6 +108,7 @@ class CLIServiceConfig:
     antigravity_cli_parameters: tuple[str, ...] = ()
     kimi_cli_parameters: tuple[str, ...] = ()
     cursor_cli_parameters: tuple[str, ...] = ()
+    reasonix_cli_parameters: tuple[str, ...] = ()
     agent_name: str = "main"
     interagent_port: int = 8799
     # External transcription hooks (#66) — empty strings keep built-in strategies.
@@ -116,17 +117,16 @@ class CLIServiceConfig:
 
     def cli_parameters_for_provider(self, provider: str) -> list[str]:
         """Return CLI parameters for the given provider."""
-        if provider == "codex":
-            return list(self.codex_cli_parameters)
-        if provider == "gemini":
-            return list(self.gemini_cli_parameters)
-        if provider == "antigravity":
-            return list(self.antigravity_cli_parameters)
-        if provider == "kimi":
-            return list(self.kimi_cli_parameters)
-        if provider == "cursor":
-            return list(self.cursor_cli_parameters)
-        return list(self.claude_cli_parameters)
+        mapping = {
+            "claude": self.claude_cli_parameters,
+            "codex": self.codex_cli_parameters,
+            "gemini": self.gemini_cli_parameters,
+            "antigravity": self.antigravity_cli_parameters,
+            "kimi": self.kimi_cli_parameters,
+            "cursor": self.cursor_cli_parameters,
+            "reasonix": self.reasonix_cli_parameters,
+        }
+        return list(mapping.get(provider, self.claude_cli_parameters))
 
 
 class CLIService:

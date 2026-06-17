@@ -18,9 +18,10 @@ from ductor_bot.config import (
     reset_cursor_models,
     reset_gemini_models,
     reset_kimi_models,
+    reset_reasonix_models,
     set_cursor_models,
     set_gemini_models,
-    set_kimi_models,
+    set_reasonix_models,
 )
 from ductor_bot.errors import DuctorError
 
@@ -75,6 +76,11 @@ def _reset_kimi_models() -> None:
 @pytest.fixture(autouse=True)
 def _reset_cursor_models() -> None:
     reset_cursor_models()
+
+
+@pytest.fixture(autouse=True)
+def _reset_reasonix_models() -> None:
+    reset_reasonix_models()
 
 
 def test_resolve_global_only(base_config: AgentConfig, codex_cache: CodexModelCache) -> None:
@@ -328,7 +334,9 @@ def test_resolve_kimi_default_model(base_config: AgentConfig, codex_cache: Codex
     assert result.model == "kimi-code/kimi-for-coding"
 
 
-def test_resolve_kimi_prefix_accepted(base_config: AgentConfig, codex_cache: CodexModelCache) -> None:
+def test_resolve_kimi_prefix_accepted(
+    base_config: AgentConfig, codex_cache: CodexModelCache
+) -> None:
     overrides = TaskOverrides(provider="kimi", model="kimi-k2-0905-preview")
 
     result = resolve_cli_config(base_config, codex_cache, task_overrides=overrides)
@@ -367,8 +375,9 @@ def test_resolve_kimi_bucket_with_overrides(
     assert result.cli_parameters == ["--verbose", "--some-flag"]
 
 
-
-def test_resolve_cursor_default_model(base_config: AgentConfig, codex_cache: CodexModelCache) -> None:
+def test_resolve_cursor_default_model(
+    base_config: AgentConfig, codex_cache: CodexModelCache
+) -> None:
     overrides = TaskOverrides(provider="cursor", model="auto")
 
     result = resolve_cli_config(base_config, codex_cache, task_overrides=overrides)
@@ -400,7 +409,9 @@ def test_resolve_cursor_model_from_discovery(
     assert result.model == "gpt-5.5-medium"
 
 
-def test_resolve_cursor_invalid_model(base_config: AgentConfig, codex_cache: CodexModelCache) -> None:
+def test_resolve_cursor_invalid_model(
+    base_config: AgentConfig, codex_cache: CodexModelCache
+) -> None:
     overrides = TaskOverrides(provider="cursor", model="haiku")
 
     with pytest.raises(DuctorError, match="Invalid Cursor model"):
@@ -428,3 +439,81 @@ def test_resolve_cursor_bucket_with_overrides(
 
     assert result.provider == "cursor"
     assert result.cli_parameters == ["--verbose", "--some-flag"]
+
+
+def test_resolve_reasonix_default_model(
+    base_config: AgentConfig, codex_cache: CodexModelCache
+) -> None:
+    overrides = TaskOverrides(provider="reasonix", model="deepseek-v4-flash")
+
+    result = resolve_cli_config(base_config, codex_cache, task_overrides=overrides)
+
+    assert result.provider == "reasonix"
+    assert result.model == "deepseek-v4-flash"
+
+
+def test_resolve_reasonix_deepseek_prefix_accepted(
+    base_config: AgentConfig, codex_cache: CodexModelCache
+) -> None:
+    overrides = TaskOverrides(provider="reasonix", model="deepseek-v4-mini")
+
+    result = resolve_cli_config(base_config, codex_cache, task_overrides=overrides)
+
+    assert result.provider == "reasonix"
+    assert result.model == "deepseek-v4-mini"
+
+
+def test_resolve_reasonix_model_from_discovery(
+    base_config: AgentConfig, codex_cache: CodexModelCache
+) -> None:
+    set_reasonix_models(frozenset({"deepseek-v4-flash", "deepseek-reasoner"}))
+    overrides = TaskOverrides(provider="reasonix", model="deepseek-reasoner")
+
+    result = resolve_cli_config(base_config, codex_cache, task_overrides=overrides)
+
+    assert result.provider == "reasonix"
+    assert result.model == "deepseek-reasoner"
+
+
+def test_resolve_reasonix_invalid_model(
+    base_config: AgentConfig, codex_cache: CodexModelCache
+) -> None:
+    overrides = TaskOverrides(provider="reasonix", model="gpt-4o")
+
+    with pytest.raises(DuctorError, match="Invalid Reasonix model"):
+        resolve_cli_config(base_config, codex_cache, task_overrides=overrides)
+
+
+def test_resolve_reasonix_bucket_with_overrides(
+    base_config: AgentConfig, codex_cache: CodexModelCache
+) -> None:
+    merged = base_config.model_copy(
+        update={
+            "cli_parameters": CLIParametersConfig(
+                claude=["IGNORED"],
+                reasonix=["--no-config"],
+            ),
+        }
+    )
+    overrides = TaskOverrides(
+        provider="reasonix",
+        model="deepseek-v4-flash",
+        cli_parameters=["--model", "deepseek-v4-mini"],
+    )
+
+    result = resolve_cli_config(merged, codex_cache, task_overrides=overrides)
+
+    assert result.provider == "reasonix"
+    assert result.cli_parameters == ["--no-config", "--model", "deepseek-v4-mini"]
+
+
+def test_resolve_reasonix_passes_through_reasoning_effort(
+    base_config: AgentConfig, codex_cache: CodexModelCache
+) -> None:
+    base_config.reasoning_effort = "high"
+    overrides = TaskOverrides(provider="reasonix", model="deepseek-v4-flash")
+
+    result = resolve_cli_config(base_config, codex_cache, task_overrides=overrides)
+
+    assert result.provider == "reasonix"
+    assert result.reasoning_effort == "high"

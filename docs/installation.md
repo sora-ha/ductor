@@ -9,6 +9,7 @@
    - Codex CLI: `npm install -g @openai/codex && codex auth`
    - Gemini CLI: `npm install -g @google/gemini-cli` and authenticate in `gemini`
    - Antigravity CLI: install `agy` and authenticate (onboarding checks `agy models`)
+   - Reasonix CLI: install `reasonix`, set `REASONIX_API_KEY` or `DEEPSEEK_API_KEY`, or run `reasonix setup`
    - Kimi CLI: `uv tool install --python 3.13 kimi-cli`, then set `KIMI_API_KEY` or authenticate via `kimi` (credentials under `~/.kimi/`)
    - Cursor CLI: install from [cursor.com](https://cursor.com/), then log in with `cursor agent`
 4. One of these messaging transports:

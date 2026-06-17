@@ -173,6 +173,18 @@ def test_check_clis_survives_codex_exception() -> None:
             "ductor_bot.cli.init_wizard.check_antigravity_auth",
             return_value=AuthResult("antigravity", AuthStatus.NOT_FOUND),
         ),
+        patch(
+            "ductor_bot.cli.init_wizard.check_kimi_auth",
+            return_value=AuthResult("kimi", AuthStatus.NOT_FOUND),
+        ),
+        patch(
+            "ductor_bot.cli.init_wizard.check_cursor_auth",
+            return_value=AuthResult("cursor", AuthStatus.NOT_FOUND),
+        ),
+        patch(
+            "ductor_bot.cli.init_wizard.check_reasonix_auth",
+            return_value=AuthResult("reasonix", AuthStatus.NOT_FOUND),
+        ),
     ):
         # Must NOT raise SystemExit.
         _check_clis(console)
@@ -203,6 +215,18 @@ def test_check_clis_aborts_when_all_fail_or_unauthenticated() -> None:
             "ductor_bot.cli.init_wizard.check_antigravity_auth",
             return_value=AuthResult("antigravity", AuthStatus.NOT_FOUND),
         ),
+        patch(
+            "ductor_bot.cli.init_wizard.check_kimi_auth",
+            return_value=AuthResult("kimi", AuthStatus.NOT_FOUND),
+        ),
+        patch(
+            "ductor_bot.cli.init_wizard.check_cursor_auth",
+            return_value=AuthResult("cursor", AuthStatus.NOT_FOUND),
+        ),
+        patch(
+            "ductor_bot.cli.init_wizard.check_reasonix_auth",
+            return_value=AuthResult("reasonix", AuthStatus.NOT_FOUND),
+        ),
         pytest.raises(SystemExit),
     ):
         _check_clis(console)
@@ -227,6 +251,18 @@ def test_check_clis_continues_when_only_claude_authed() -> None:
         patch(
             "ductor_bot.cli.init_wizard.check_antigravity_auth",
             return_value=AuthResult("antigravity", AuthStatus.NOT_FOUND),
+        ),
+        patch(
+            "ductor_bot.cli.init_wizard.check_kimi_auth",
+            return_value=AuthResult("kimi", AuthStatus.NOT_FOUND),
+        ),
+        patch(
+            "ductor_bot.cli.init_wizard.check_cursor_auth",
+            return_value=AuthResult("cursor", AuthStatus.NOT_FOUND),
+        ),
+        patch(
+            "ductor_bot.cli.init_wizard.check_reasonix_auth",
+            return_value=AuthResult("reasonix", AuthStatus.NOT_FOUND),
         ),
     ):
         # Returns None; does not raise SystemExit.
@@ -255,9 +291,7 @@ def _mock_questionary(urls: list[str | None]) -> object:
         ("http://matrix.example.com/", "http://matrix.example.com"),
     ],
 )
-def test_ask_matrix_homeserver_accepts_http_and_https(
-    input_url: str, expected_url: str
-) -> None:
+def test_ask_matrix_homeserver_accepts_http_and_https(input_url: str, expected_url: str) -> None:
     """Matrix homeserver URL must accept both HTTP and HTTPS schemes."""
     console = Console(record=True, width=120)
     with patch(

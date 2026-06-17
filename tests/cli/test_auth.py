@@ -14,6 +14,7 @@ from ductor_bot.cli.auth import (
     check_cursor_auth,
     check_gemini_auth,
     check_kimi_auth,
+    check_reasonix_auth,
     format_age,
     gemini_uses_api_key_mode,
 )
@@ -659,7 +660,9 @@ def test_check_kimi_auth_with_env_key(monkeypatch: pytest.MonkeyPatch) -> None:
     assert result.status == AuthStatus.AUTHENTICATED
 
 
-def test_check_kimi_auth_installed_without_key(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_check_kimi_auth_installed_without_key(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     import ductor_bot.cli.auth as _auth_mod
 
     monkeypatch.setattr(_auth_mod, "which", lambda _cmd: "/usr/bin/kimi")
@@ -672,7 +675,9 @@ def test_check_kimi_auth_installed_without_key(tmp_path: Path, monkeypatch: pyte
     assert result.status == AuthStatus.INSTALLED
 
 
-def test_check_kimi_auth_with_credentials_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_check_kimi_auth_with_credentials_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     import ductor_bot.cli.auth as _auth_mod
 
     monkeypatch.setattr(_auth_mod, "which", lambda _cmd: "/usr/bin/kimi")
@@ -690,7 +695,9 @@ def test_check_kimi_auth_with_credentials_file(tmp_path: Path, monkeypatch: pyte
     assert result.auth_file == creds_dir / "default.json"
 
 
-def test_check_kimi_auth_with_kimi_code_credentials(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_check_kimi_auth_with_kimi_code_credentials(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     import ductor_bot.cli.auth as _auth_mod
 
     monkeypatch.setattr(_auth_mod, "which", lambda _cmd: "/usr/bin/kimi")
@@ -790,3 +797,84 @@ def test_check_cursor_auth_uses_whoami_fallback(monkeypatch: pytest.MonkeyPatch)
 
     assert result.status == AuthStatus.AUTHENTICATED
     assert any(cmd[-1] == "whoami" for cmd in calls)
+
+
+# -- Reasonix auth --
+
+
+def test_check_reasonix_auth_not_found(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    import ductor_bot.cli.auth as _auth_mod
+
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
+    monkeypatch.setattr(_auth_mod, "which", lambda _cmd: None)
+    monkeypatch.delenv("REASONIX_API_KEY", raising=False)
+    monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
+
+    result = check_reasonix_auth()
+
+    assert result.provider == "reasonix"
+    assert result.status == AuthStatus.NOT_FOUND
+
+
+def test_check_reasonix_auth_installed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    import ductor_bot.cli.auth as _auth_mod
+
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
+    monkeypatch.setattr(_auth_mod, "which", lambda _cmd: "/usr/bin/reasonix")
+    monkeypatch.delenv("REASONIX_API_KEY", raising=False)
+    monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
+
+    result = check_reasonix_auth()
+
+    assert result.provider == "reasonix"
+    assert result.status == AuthStatus.INSTALLED
+
+
+def test_check_reasonix_auth_env_key(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    import ductor_bot.cli.auth as _auth_mod
+
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
+    monkeypatch.setattr(_auth_mod, "which", lambda _cmd: "/usr/bin/reasonix")
+    monkeypatch.setenv("REASONIX_API_KEY", "rnx-test-key")
+    monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
+
+    result = check_reasonix_auth()
+
+    assert result.provider == "reasonix"
+    assert result.status == AuthStatus.AUTHENTICATED
+
+
+def test_check_reasonix_auth_deepseek_env_key(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import ductor_bot.cli.auth as _auth_mod
+
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
+    monkeypatch.setattr(_auth_mod, "which", lambda _cmd: "/usr/bin/reasonix")
+    monkeypatch.delenv("REASONIX_API_KEY", raising=False)
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "deepseek-test-key")
+
+    result = check_reasonix_auth()
+
+    assert result.provider == "reasonix"
+    assert result.status == AuthStatus.AUTHENTICATED
+
+
+def test_check_reasonix_auth_config_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    import ductor_bot.cli.auth as _auth_mod
+
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
+    monkeypatch.setattr(_auth_mod, "which", lambda _cmd: "/usr/bin/reasonix")
+    monkeypatch.delenv("REASONIX_API_KEY", raising=False)
+    monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
+
+    reasonix_home = tmp_path / ".reasonix"
+    reasonix_home.mkdir(parents=True)
+    config_file = reasonix_home / "config.json"
+    config_file.write_text('{"apiKey":"rnx-config-key"}')
+
+    result = check_reasonix_auth()
+
+    assert result.provider == "reasonix"
+    assert result.status == AuthStatus.AUTHENTICATED
+    assert result.auth_file == config_file

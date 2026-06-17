@@ -17,6 +17,7 @@ def test_cli_parameters_config_defaults() -> None:
     assert config.antigravity == []
     assert config.kimi == []
     assert config.cursor == []
+    assert config.reasonix == []
 
 
 def test_cli_parameters_config_with_values() -> None:
@@ -28,12 +29,14 @@ def test_cli_parameters_config_with_values() -> None:
         antigravity=["--log-file", "agy.log"],
         kimi=["--verbose"],
         cursor=["--trust"],
+        reasonix=["--no-config"],
     )
     assert config.claude == ["--fast", "--no-cache"]
     assert config.codex == ["--verbose", "--debug"]
     assert config.gemini == ["--experimental"]
     assert config.antigravity == ["--log-file", "agy.log"]
     assert config.kimi == ["--verbose"]
+    assert config.reasonix == ["--no-config"]
 
 
 def test_agent_config_includes_cli_parameters() -> None:
@@ -47,6 +50,7 @@ def test_agent_config_includes_cli_parameters() -> None:
     assert config.cli_parameters.antigravity == []
     assert config.cli_parameters.kimi == []
     assert config.cli_parameters.cursor == []
+    assert config.cli_parameters.reasonix == []
 
 
 def test_agent_config_with_cli_parameters() -> None:
@@ -58,12 +62,14 @@ def test_agent_config_with_cli_parameters() -> None:
             antigravity=["--log-file", "agy.log"],
             kimi=["--verbose"],
             cursor=["--trust"],
+            reasonix=["--no-config"],
         ),
     )
     assert config.cli_parameters.claude == ["--fast"]
     assert config.cli_parameters.codex == ["--verbose"]
     assert config.cli_parameters.antigravity == ["--log-file", "agy.log"]
     assert config.cli_parameters.kimi == ["--verbose"]
+    assert config.cli_parameters.reasonix == ["--no-config"]
 
 
 def test_agent_config_json_round_trip_with_cli_parameters() -> None:
@@ -75,6 +81,7 @@ def test_agent_config_json_round_trip_with_cli_parameters() -> None:
             antigravity=["--log-file", "agy.log"],
             kimi=["--verbose"],
             cursor=["--trust"],
+            reasonix=["--no-config"],
         ),
     )
 
@@ -91,6 +98,7 @@ def test_agent_config_json_round_trip_with_cli_parameters() -> None:
     assert restored.cli_parameters.antigravity == ["--log-file", "agy.log"]
     assert restored.cli_parameters.kimi == ["--verbose"]
     assert restored.cli_parameters.cursor == ["--trust"]
+    assert restored.cli_parameters.reasonix == ["--no-config"]
 
 
 def test_deep_merge_preserves_cli_parameters() -> None:
@@ -131,6 +139,7 @@ def test_backward_compatibility_without_cli_parameters() -> None:
     assert "cli_parameters" in merged
     assert merged["cli_parameters"]["claude"] == []
     assert merged["cli_parameters"]["codex"] == []
+    assert merged["cli_parameters"]["reasonix"] == []
     assert changed is True
 
     # User values should be preserved
@@ -163,6 +172,8 @@ def test_deep_merge_nested_cli_parameters() -> None:
     assert merged["cli_parameters"]["kimi"] == []
     assert "cursor" in merged["cli_parameters"]
     assert merged["cli_parameters"]["cursor"] == []
+    assert "reasonix" in merged["cli_parameters"]
+    assert merged["cli_parameters"]["reasonix"] == []
     assert changed is True
 
 

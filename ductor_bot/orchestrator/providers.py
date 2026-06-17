@@ -13,15 +13,19 @@ from ductor_bot.config import (
     DEFAULT_CURSOR_MODEL,
     DEFAULT_GEMINI_MODEL,
     DEFAULT_KIMI_MODEL,
+    DEFAULT_REASONIX_MODEL,
+    REASONIX_MODELS,
     ModelRegistry,
     get_antigravity_models,
     get_cursor_models,
     get_gemini_models,
     get_kimi_models,
+    get_reasonix_models,
     set_antigravity_models,
     set_cursor_models,
     set_gemini_models,
     set_kimi_models,
+    set_reasonix_models,
 )
 
 if TYPE_CHECKING:
@@ -79,17 +83,15 @@ class ProviderManager:
     def active_provider_name(self) -> str:
         """Human-readable name for the active CLI provider."""
         _model, provider = self.resolve_runtime_target(self._config.model)
-        if provider == "claude":
-            return "Claude Code"
-        if provider == "gemini":
-            return "Gemini"
-        if provider == "antigravity":
-            return "Antigravity"
-        if provider == "kimi":
-            return "Kimi"
-        if provider == "cursor":
-            return "Cursor"
-        return "Codex"
+        names = {
+            "claude": "Claude Code",
+            "gemini": "Gemini",
+            "antigravity": "Antigravity",
+            "kimi": "Kimi",
+            "cursor": "Cursor",
+            "reasonix": "Reasonix",
+        }
+        return names.get(provider, "Codex")
 
     # -- Auth / init ----------------------------------------------------------
 
@@ -150,6 +152,11 @@ class ProviderManager:
         set_cursor_models(frozenset(models))
         self.refresh_known_model_ids()
 
+    def on_reasonix_models_refresh(self, models: tuple[str, ...]) -> None:
+        """Callback for Reasonix model discovery: update model registry."""
+        set_reasonix_models(frozenset(models))
+        self.refresh_known_model_ids()
+
     def refresh_gemini_api_key_mode(self) -> bool:
         """Re-read ``~/.gemini/settings.json`` and update the cache.
 
@@ -166,11 +173,13 @@ class ProviderManager:
         self._known_model_ids = (
             CLAUDE_MODELS
             | ANTIGRAVITY_MODELS
+            | REASONIX_MODELS
             | _GEMINI_ALIASES
             | get_gemini_models()
             | get_antigravity_models()
             | get_kimi_models()
             | get_cursor_models()
+            | get_reasonix_models()
         )
 
     def resolve_runtime_target(self, requested_model: str | None = None) -> tuple[str, str]:
@@ -196,7 +205,7 @@ class ProviderManager:
         codex = self._codex_cache_fn() if self._codex_cache_fn else None
         return bool(codex and codex.validate_model(candidate))
 
-    def default_model_for_provider(self, provider: str) -> str:  # noqa: PLR0911
+    def default_model_for_provider(self, provider: str) -> str:  # noqa: PLR0911, C901
         """Return the default model ID for a provider, or empty string if unknown."""
         if provider == "claude":
             return self._config.model if self._config.provider == "claude" else "sonnet"
@@ -215,6 +224,8 @@ class ProviderManager:
             return DEFAULT_KIMI_MODEL
         if provider == "cursor":
             return DEFAULT_CURSOR_MODEL
+        if provider == "reasonix":
+            return DEFAULT_REASONIX_MODEL
         return ""
 
     def resolve_session_directive(self, key: str) -> tuple[str, str] | None:
@@ -225,7 +236,7 @@ class ProviderManager:
         - known model   (``@opus``)  -> (inferred_provider, model)
         - unknown                    -> None
         """
-        if key in ("claude", "codex", "gemini", "antigravity", "kimi", "cursor"):
+        if key in ("claude", "codex", "gemini", "antigravity", "kimi", "cursor", "reasonix"):
             return key, self.default_model_for_provider(key)
         if self.is_known_model(key):
             provider = self._models.provider_for(key)
@@ -249,6 +260,7 @@ class ProviderManager:
             "antigravity": ("Antigravity", "#3B82F6"),
             "kimi": ("Kimi", "#06B6D4"),
             "cursor": ("Cursor", "#F43F5E"),
+            "reasonix": ("Reasonix", "#F59E0B"),
         }
         providers: list[dict[str, object]] = []
         for pid in sorted(self._available_providers):
@@ -271,6 +283,9 @@ class ProviderManager:
             elif pid == "cursor":
                 cursor_models = get_cursor_models()
                 models = sorted(cursor_models) if cursor_models else [DEFAULT_CURSOR_MODEL]
+            elif pid == "reasonix":
+                reasonix_models = get_reasonix_models()
+                models = sorted(reasonix_models) if reasonix_models else sorted(REASONIX_MODELS)
             else:
                 models = []
             providers.append({"id": pid, "name": name, "color": color, "models": models})

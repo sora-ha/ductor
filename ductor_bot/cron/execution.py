@@ -15,6 +15,7 @@ from ductor_bot.cli.codex_events import parse_codex_jsonl
 from ductor_bot.cli.gemini_events import parse_gemini_json
 from ductor_bot.cli.gemini_utils import find_gemini_cli
 from ductor_bot.cli.param_resolver import TaskExecutionConfig
+from ductor_bot.cli.reasonix_provider import _clean_reasonix_output
 from ductor_bot.infra.platform import CREATION_FLAGS as _CREATION_FLAGS
 from ductor_bot.infra.process_tree import force_kill_process_tree
 
@@ -117,7 +118,7 @@ def parse_kimi_result(stdout: bytes) -> str:
     return raw[:2000]
 
 
-def parse_cursor_result(stdout: bytes) -> str:
+def parse_cursor_result(stdout: bytes) -> str:  # noqa: C901, PLR0912
     """Extract result text from Cursor CLI JSONL output."""
     if not stdout:
         return ""
@@ -154,6 +155,16 @@ def parse_cursor_result(stdout: bytes) -> str:
     if text_parts:
         return "".join(text_parts)
     return raw[:2000]
+
+
+def parse_reasonix_result(stdout: bytes) -> str:
+    """Extract clean result text from Reasonix CLI plain-text output."""
+    if not stdout:
+        return ""
+    raw = stdout.decode(errors="replace").strip()
+    if not raw:
+        return ""
+    return _clean_reasonix_output(raw)
 
 
 def parse_result(provider: str, stdout: bytes) -> str:
@@ -278,6 +289,32 @@ def _build_cursor_cmd(exec_config: TaskExecutionConfig, prompt: str) -> OneShotC
     return OneShotCommand(cmd=cmd)
 
 
+def _find_reasonix_cli() -> str | None:
+    """Locate the Reasonix binary, preferring PATH and falling back to nvm."""
+    cli = which("reasonix")
+    if cli:
+        return cli
+    fallback = Path.home() / ".nvm" / "versions" / "node" / "v24.16.0" / "bin" / "reasonix"
+    if fallback.is_file():
+        return str(fallback)
+    return None
+
+
+def _build_reasonix_cmd(exec_config: TaskExecutionConfig, prompt: str) -> OneShotCommand | None:
+    """Build a Reasonix CLI command for one-shot cron execution."""
+    cli = _find_reasonix_cli()
+    if not cli:
+        return None
+    cmd = [cli, "run"]
+    cmd.extend(exec_config.cli_parameters)
+    if exec_config.model:
+        cmd += ["--model", exec_config.model]
+    if exec_config.reasoning_effort and exec_config.reasoning_effort != "medium":
+        cmd += ["--effort", exec_config.reasoning_effort]
+    cmd.append(prompt)
+    return OneShotCommand(cmd=cmd)
+
+
 _CmdBuilder = Callable[[TaskExecutionConfig, str], OneShotCommand | None]
 _ResultParser = Callable[[bytes], str]
 
@@ -287,6 +324,7 @@ _CMD_BUILDERS: dict[str, _CmdBuilder] = {
     "codex": _build_codex_cmd,
     "kimi": _build_kimi_cmd,
     "cursor": _build_cursor_cmd,
+    "reasonix": _build_reasonix_cmd,
 }
 
 _RESULT_PARSERS: dict[str, _ResultParser] = {
@@ -295,6 +333,7 @@ _RESULT_PARSERS: dict[str, _ResultParser] = {
     "codex": parse_codex_result,
     "kimi": parse_kimi_result,
     "cursor": parse_cursor_result,
+    "reasonix": parse_reasonix_result,
 }
 
 

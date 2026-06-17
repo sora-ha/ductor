@@ -38,7 +38,9 @@ _SKIP_DIRS: frozenset[str] = frozenset(
 
 _SKILL_SYNC_INTERVAL = 30.0
 _MANAGED_MARKER = ".ductor_managed"
-_SYNCABLE_PROVIDERS: frozenset[str] = frozenset({"claude", "codex", "gemini", "kimi", "cursor"})
+_SYNCABLE_PROVIDERS: frozenset[str] = frozenset(
+    {"claude", "codex", "gemini", "kimi", "cursor", "reasonix"}
+)
 
 
 def _load_skill_sync_config(config_path: Path) -> tuple[bool, frozenset[str]]:
@@ -132,7 +134,9 @@ def _has_valid_skill_frontmatter(skill_dir: Path) -> bool:
     )
 
 
-def _cli_skill_dirs(enabled_providers: frozenset[str] | None = None) -> dict[str, Path]:
+def _cli_skill_dirs(  # noqa: C901
+    enabled_providers: frozenset[str] | None = None,
+) -> dict[str, Path]:
     """Return skill directories for installed CLIs.
 
     Only includes CLIs whose home directory exists on disk and whose sync is
@@ -160,6 +164,10 @@ def _cli_skill_dirs(enabled_providers: frozenset[str] | None = None) -> dict[str
         cursor_home = Path.home() / ".cursor"
         if cursor_home.is_dir():
             dirs["cursor"] = cursor_home / "skills"
+    if enabled_providers is None or "reasonix" in enabled_providers:
+        reasonix_home = Path.home() / ".reasonix"
+        if reasonix_home.is_dir():
+            dirs["reasonix"] = reasonix_home / "skills"
     return dirs
 
 
@@ -397,8 +405,8 @@ def sync_skills(paths: DuctorPaths, *, docker_active: bool = False) -> None:
     for reg in registries.values():
         all_names.update(reg.keys())
 
-    # Priority order: ductor > claude > codex > gemini > kimi > cursor
-    priority = ("ductor", "claude", "codex", "gemini", "kimi", "cursor")
+    # Priority order: ductor > claude > codex > gemini > kimi > cursor > reasonix
+    priority = ("ductor", "claude", "codex", "gemini", "kimi", "cursor", "reasonix")
     for skill_name in sorted(all_names):
         canonical = _resolve_canonical(
             skill_name,

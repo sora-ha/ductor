@@ -16,12 +16,16 @@ from ductor_bot.config import (
     CLAUDE_MODELS,
     DEFAULT_CURSOR_MODEL,
     DEFAULT_KIMI_MODEL,
+    REASONIX_MODELS,
     get_cursor_models,
     get_gemini_models,
     get_kimi_models,
+    get_reasonix_models,
 )
 
-_TASK_PROVIDERS: frozenset[str] = frozenset({"claude", "codex", "gemini", "kimi", "cursor"})
+_TASK_PROVIDERS: frozenset[str] = frozenset(
+    {"claude", "codex", "gemini", "kimi", "cursor", "reasonix"}
+)
 
 
 def _looks_like_gemini_model(model: str) -> bool:
@@ -75,6 +79,24 @@ def _validate_cursor_model(model: str) -> None:
         raise DuctorError(msg)
 
 
+def _looks_like_reasonix_model(model: str) -> bool:
+    return model in REASONIX_MODELS or model.startswith(("deepseek-", "reasonix-"))
+
+
+def _validate_reasonix_model(model: str) -> None:
+    reasonix_models = get_reasonix_models()
+    if model in reasonix_models:
+        return
+    if model in REASONIX_MODELS:
+        return
+    if not reasonix_models and not _looks_like_reasonix_model(model):
+        msg = (
+            f"Invalid Reasonix model: {model}. Must use a DeepSeek model ID "
+            "(e.g. deepseek-v4-flash)."
+        )
+        raise DuctorError(msg)
+
+
 def _validate_task_provider(provider: str) -> None:
     if provider in _TASK_PROVIDERS:
         return
@@ -107,7 +129,7 @@ class TaskExecutionConfig:
     file_access: str
 
 
-def resolve_cli_config(
+def resolve_cli_config(  # noqa: C901, PLR0912
     base_config: AgentConfig,
     codex_cache: CodexModelCache | None,
     *,
@@ -154,6 +176,8 @@ def resolve_cli_config(
         _validate_kimi_model(model)
     elif provider == "cursor":
         _validate_cursor_model(model)
+    elif provider == "reasonix":
+        _validate_reasonix_model(model)
     else:  # codex
         if codex_cache is None:
             msg = "Codex cache is required for Codex model validation"
@@ -162,7 +186,7 @@ def resolve_cli_config(
             msg = f"Invalid Codex model: {model}"
             raise DuctorError(msg)
 
-    # 4. Resolve reasoning effort (Codex only)
+    # 4. Resolve reasoning effort (Codex validates against model; others pass through)
     reasoning_effort = ""
     if provider == "codex":
         requested_effort = overrides.reasoning_effort or base_config.reasoning_effort
@@ -185,6 +209,8 @@ def resolve_cli_config(
                     f"Supported: {supported_display}"
                 )
                 raise DuctorError(msg)
+    elif provider == "reasonix":
+        reasoning_effort = overrides.reasoning_effort or base_config.reasoning_effort or ""
 
     # 5. Merge CLI parameters: base per-provider bucket first, task overrides second.
     #    argparse-style resolution — last flag wins at the CLI level.

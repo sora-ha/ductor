@@ -10,11 +10,14 @@ from ductor_bot.config import (
     DEFAULT_CURSOR_MODEL,
     DEFAULT_GEMINI_MODEL,
     DEFAULT_KIMI_MODEL,
+    DEFAULT_REASONIX_MODEL,
     AgentConfig,
     reset_cursor_models,
     reset_gemini_models,
     reset_kimi_models,
+    reset_reasonix_models,
     set_gemini_models,
+    set_reasonix_models,
 )
 from ductor_bot.orchestrator.providers import ProviderManager
 
@@ -38,6 +41,13 @@ def _reset_cursor():
     reset_cursor_models()
     yield
     reset_cursor_models()
+
+
+@pytest.fixture(autouse=True)
+def _reset_reasonix():
+    reset_reasonix_models()
+    yield
+    reset_reasonix_models()
 
 
 def _pm(
@@ -110,6 +120,18 @@ class TestResolveRuntimeTarget:
         assert model == "kimi-code/kimi-for-coding"
         assert provider == "kimi"
 
+    def test_reasonix_model(self) -> None:
+        pm = _pm()
+        model, provider = pm.resolve_runtime_target("deepseek-v4-flash")
+        assert model == "deepseek-v4-flash"
+        assert provider == "reasonix"
+
+    def test_auto_resolves_to_configured_reasonix_default(self) -> None:
+        pm = _pm(model="auto", provider="reasonix")
+        model, provider = pm.resolve_runtime_target()
+        assert model == DEFAULT_REASONIX_MODEL
+        assert provider == "reasonix"
+
 
 # ---------------------------------------------------------------------------
 # resolve_session_directive
@@ -150,6 +172,13 @@ class TestResolveSessionDirective:
         assert result is not None
         assert result[0] == "cursor"
         assert result[1] == DEFAULT_CURSOR_MODEL
+
+    def test_provider_name_reasonix(self) -> None:
+        pm = _pm()
+        result = pm.resolve_session_directive("reasonix")
+        assert result is not None
+        assert result[0] == "reasonix"
+        assert result[1] == DEFAULT_REASONIX_MODEL
 
     def test_known_model(self) -> None:
         pm = _pm()
@@ -192,6 +221,15 @@ class TestIsKnownModel:
     def test_kimi_auto_alias(self) -> None:
         pm = _pm()
         assert pm.is_known_model("kimi-auto") is True
+
+    def test_reasonix_default_model(self) -> None:
+        pm = _pm()
+        assert pm.is_known_model("deepseek-v4-flash") is True
+
+    def test_reasonix_runtime_models(self) -> None:
+        set_reasonix_models(frozenset({"deepseek-reasoner"}))
+        pm = _pm()
+        assert pm.is_known_model("deepseek-reasoner") is True
 
     def test_unknown_model(self) -> None:
         pm = _pm()
@@ -247,6 +285,10 @@ class TestDefaultModelForProvider:
     def test_cursor(self) -> None:
         pm = _pm()
         assert pm.default_model_for_provider("cursor") == DEFAULT_CURSOR_MODEL
+
+    def test_reasonix(self) -> None:
+        pm = _pm()
+        assert pm.default_model_for_provider("reasonix") == DEFAULT_REASONIX_MODEL
 
     def test_unknown_provider(self) -> None:
         pm = _pm()
@@ -332,6 +374,10 @@ class TestActiveProviderName:
         pm = _pm(model="auto", provider="cursor")
         assert pm.active_provider_name == "Cursor"
 
+    def test_reasonix(self) -> None:
+        pm = _pm(model="deepseek-v4-flash", provider="reasonix")
+        assert pm.active_provider_name == "Reasonix"
+
 
 # ---------------------------------------------------------------------------
 # on_gemini_models_refresh
@@ -380,3 +426,17 @@ class TestOnCursorModelsRefresh:
 
         pm.on_cursor_models_refresh(("composer-2.5-fast",))
         assert pm.is_known_model("composer-2.5-fast")
+
+
+# ---------------------------------------------------------------------------
+# on_reasonix_models_refresh
+# ---------------------------------------------------------------------------
+
+
+class TestOnReasonixModelsRefresh:
+    def test_updates_known_model_ids(self) -> None:
+        pm = _pm()
+        assert not pm.is_known_model("deepseek-reasoner")
+
+        pm.on_reasonix_models_refresh(("deepseek-reasoner",))
+        assert pm.is_known_model("deepseek-reasoner")

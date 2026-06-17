@@ -107,7 +107,8 @@
         "gemini": [],
         "antigravity": [],
         "kimi": [],
-        "cursor": []
+        "cursor": [],
+        "reasonix": []
     },
     "image": {"max_dimension": 2000, "output_format": "webp", "quality": 85},
     "scene": {"seen_reaction": false, "status_reaction": true, "technical_footer": false},
@@ -133,7 +134,8 @@
             "codex": true,
             "gemini": true,
             "kimi": true,
-            "cursor": true
+            "cursor": true,
+            "reasonix": true
         }
     },
     "interagent_port": 8799
