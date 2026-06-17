@@ -41,7 +41,7 @@ ductor
 
 The onboarding wizard handles CLI checks, transport setup (Telegram or Matrix), timezone, optional Docker, and optional background service install.
 
-**Requirements:** Python 3.11+, at least one CLI installed (`claude`, `codex`, `gemini`, `agy`, or `reasonix`), and either:
+**Requirements:** Python 3.11+, at least one CLI installed (`claude`, `codex`, `gemini`, `agy`, `kimi`, `cursor`, or `reasonix`), and either:
 
 - a Telegram Bot Token from [@BotFather](https://t.me/BotFather), or
 - a Matrix account on a homeserver (homeserver URL, user ID, password/access token)
@@ -56,7 +56,7 @@ ductor gives you multiple ways to interact with your coding agents. Each level b
 
 ### 1. Single chat (your main agent)
 
-This is where everyone starts. You get a private 1:1 chat with your bot (Telegram or Matrix). Every message goes to the CLI you have active (`claude`, `codex`, `gemini`, `agy`, or `reasonix`), responses stream back in real time.
+This is where everyone starts. You get a private 1:1 chat with your bot (Telegram or Matrix). Every message goes to the CLI you have active (`claude`, `codex`, `gemini`, `agy`, `kimi`, `cursor`, or `reasonix`), responses stream back in real time.
 
 ```text
 You:   "Explain the auth flow in this codebase"
@@ -210,7 +210,7 @@ Main chat:  "Ask codex-agent to write tests for the API"
 - **Config hot-reload** — most settings update without restart (including language, scene, image)
 - **Docker sandbox** — optional sidecar container with configurable host mounts
 - **Service manager** — Linux (systemd), macOS (launchd), Windows (Task Scheduler)
-- **Cross-tool skill sync** — shared skills across `~/.claude/`, `~/.codex/`, `~/.gemini/`, `~/.reasonix/` (globally or per-provider toggleable)
+- **Cross-tool skill sync** — shared skills across `~/.claude/`, `~/.codex/`, `~/.gemini/`, `~/.kimi/`, `~/.cursor/`, `~/.reasonix/` (globally or per-provider toggleable)
 
 ## Messenger support
 
@@ -416,7 +416,7 @@ Full config reference: [`docs/config.md`](docs/config.md) — full example with 
 
 Other projects manipulate SDKs or patch CLIs and risk violating provider terms of service. ductor simply runs the official CLI binaries as subprocesses — nothing more.
 
-- Official CLIs only (`claude`, `codex`, `gemini`, `agy`, `reasonix`)
+- Official CLIs only (`claude`, `codex`, `gemini`, `agy`, `kimi`, `cursor`, `reasonix`)
 - Rule files are plain Markdown (`CLAUDE.md`, `AGENTS.md`, `GEMINI.md`)
 - Memory is one Markdown file per agent
 - All state is JSON — no database, no external services
