@@ -62,3 +62,4 @@ graphify-out/
 
 # Auto-generated bot credential lists
 scripts/matrix_instances.txt
+scripts/matrix_instances_rooms.json

@@ -1,22 +1,29 @@
 #!/usr/bin/env python3
-"""Register Matrix accounts for ductor instances on an open-registration server.
+"""Register Matrix accounts for ductor instances on a Matrix homeserver.
 
 The script verifies the owner account first, creates N bot accounts, provisions
 a private DM room with the owner for each bot, writes an instances file for
 launch_4_kimi_matrix.sh, and verifies every room ID before exiting.
 
+Supports open registration and token-gated registration (m.login.registration_token).
+
 Usage:
-    python3 scripts/register_matrix_bots.py \
-        --homeserver https://matrix.example.com \
+    cd ductor
+    uv sync
+    uv run python scripts/register_matrix_bots.py \
+        --homeserver http://matrix.local:6167 \
         --base-username ductor-kimi \
         --password VerySecret123 \
-        --allowed-user @you:matrix.example.com \
+        --allowed-user @you:matrix.local \
         --owner-password your-owner-password \
+        --registration-token matrix-crew-dev \
         --count 4 \
         --output scripts/matrix_instances.txt
 
+The registration token can also be set via CONDUIT_REGISTRATION_TOKEN env var.
+
 Then launch the bots:
-    ./scripts/launch_4_kimi_matrix.sh https://matrix.example.com @you:matrix.example.com scripts/matrix_instances.txt
+    ./scripts/launch_4_kimi_matrix.sh http://matrix.local:6167 @you:matrix.local scripts/matrix_instances.txt
 """
 
 from __future__ import annotations
@@ -24,6 +31,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import os
 import sys
 from pathlib import Path
 from typing import Any
@@ -70,6 +78,11 @@ def _parse_args() -> argparse.Namespace:
         "--skip-rooms",
         action="store_true",
         help="Register accounts only; do not create owner DM rooms",
+    )
+    parser.add_argument(
+        "--registration-token",
+        default=os.environ.get("CONDUIT_REGISTRATION_TOKEN", ""),
+        help="Token for m.login.registration_token (default: CONDUIT_REGISTRATION_TOKEN env)",
     )
     args = parser.parse_args()
     _validate_mxid(args.allowed_user)
@@ -192,11 +205,20 @@ async def _login(
     }
 
 
+def _supported_registration_stages(registration_token: str) -> set[str]:
+    stages = {"m.login.dummy", "m.login.terms"}
+    if registration_token:
+        stages.add("m.login.registration_token")
+    return stages
+
+
 async def _register(  # noqa: C901, PLR0912
     session: aiohttp.ClientSession,
     homeserver: str,
     username: str,
     password: str,
+    *,
+    registration_token: str = "",
 ) -> str:
     """Register a Matrix user and return the full MXID."""
     register_url = _client_url(homeserver, "/_matrix/client/v3/register")
@@ -230,16 +252,22 @@ async def _register(  # noqa: C901, PLR0912
             if not session_id or not flows:
                 raise RuntimeError(f"Registration requires unsupported auth: {data}")
 
+            supported = _supported_registration_stages(registration_token)
             chosen_flow = None
             for flow in flows:
                 stages = flow.get("stages", [])
-                if all(stage in {"m.login.dummy", "m.login.terms"} for stage in stages):
+                if all(stage in supported for stage in stages):
                     chosen_flow = stages
                     break
 
             if chosen_flow is None:
+                hint = ""
+                if any(
+                    "m.login.registration_token" in flow.get("stages", []) for flow in flows
+                ):
+                    hint = " Pass --registration-token or set CONDUIT_REGISTRATION_TOKEN."
                 raise RuntimeError(
-                    f"Registration requires unsupported auth flow. Available flows: {flows}"
+                    f"Registration requires unsupported auth flow. Available flows: {flows}.{hint}"
                 )
 
             next_stage = None
@@ -251,7 +279,14 @@ async def _register(  # noqa: C901, PLR0912
             if next_stage is None:
                 raise RuntimeError(f"Auth stages complete but registration not finished: {data}")
 
-            auth = {"type": next_stage, "session": session_id}
+            auth: dict[str, Any] = {"type": next_stage, "session": session_id}
+            if next_stage == "m.login.registration_token":
+                if not registration_token:
+                    raise RuntimeError(
+                        "Registration requires a token. "
+                        "Pass --registration-token or set CONDUIT_REGISTRATION_TOKEN."
+                    )
+                auth["token"] = registration_token
             body["auth"] = auth
             continue
 
@@ -265,9 +300,17 @@ async def _register_or_login(
     homeserver: str,
     username: str,
     password: str,
+    *,
+    registration_token: str = "",
 ) -> str:
     try:
-        return await _register(session, homeserver, username, password)
+        return await _register(
+            session,
+            homeserver,
+            username,
+            password,
+            registration_token=registration_token,
+        )
     except RuntimeError as exc:
         if "already taken" not in str(exc):
             raise
@@ -394,7 +437,13 @@ async def _provision_bot(
 ) -> tuple[str, str, str | None]:
     username = f"{args.base_username}-{index}"
     print(f"Registering @{username} ...", flush=True)
-    mxid = await _register_or_login(session, args.homeserver, username, args.password)
+    mxid = await _register_or_login(
+        session,
+        args.homeserver,
+        username,
+        args.password,
+        registration_token=args.registration_token,
+    )
     print(f"  -> {mxid}", flush=True)
 
     room_id: str | None = None
