@@ -262,16 +262,18 @@ class MatrixBot:
         self._client.add_event_callback(self._on_media, RoomMessageVideo)
         self._client.add_event_callback(self._on_media, RoomMessageFile)
         self._client.add_event_callback(self._on_reaction, ReactionEvent)
-        self._client.add_event_callback(self._on_invite, InviteMemberEvent)
 
         # Initial sync to populate room list (needed for notifications before
         # any user message arrives, e.g. inter-agent delivery).
         # Callbacks are registered but _ready=False blocks message processing.
+        # Invite handling is deferred until after this sync — joining during
+        # the initial sync callback can fail silently on some homeservers.
         await self._client.sync(timeout=10000, full_state=True)
         self._save_sync_token()  # Persist so next restart skips replayed events
         self._populate_rooms_from_sync()
 
         await self._process_pending_invites()
+        self._client.add_event_callback(self._on_invite, InviteMemberEvent)
 
         # Run startup (orchestrator, observers, hooks)
         from ductor_bot.messenger.matrix.startup import run_matrix_startup
@@ -1140,6 +1142,23 @@ class MatrixBot:
 
     # --- Room invite handling ---
 
+    async def _collect_invite_room_ids(self) -> set[str]:
+        """Return room IDs with a pending invite.
+
+        matrix-nio's ``invited_rooms`` can be empty after restoring a sync
+        token even when the homeserver still has outstanding invites.
+        """
+        room_ids = set(getattr(self._client, "invited_rooms", {}).keys())
+        try:
+            resp = await self._client.sync(timeout=0, full_state=False)
+        except Exception:
+            logger.exception("Failed to sync while collecting pending invites")
+            return room_ids
+        rooms = getattr(resp, "rooms", None)
+        if rooms and rooms.invite:
+            room_ids.update(rooms.invite.keys())
+        return room_ids
+
     async def _process_pending_invites(self) -> None:
         """Auto-join invites that were already present in the initial sync.
 
@@ -1147,17 +1166,45 @@ class MatrixBot:
         ``sync_forever``. Pending invites from a restored sync token would
         otherwise be ignored until another event triggers a callback.
         """
-        for room_id, room in list(getattr(self._client, "invited_rooms", {}).items()):
+        room_ids = await self._collect_invite_room_ids()
+        if room_ids:
+            logger.info("Processing %d pending Matrix invite(s)", len(room_ids))
+        for room_id in room_ids:
             try:
-                await self._on_invite(room, None)
+                await self._handle_invite_room(room_id)
             except Exception:
                 logger.exception("Failed to process pending invite for %s", room_id)
 
     async def _on_invite(self, room: object, event: object) -> None:
         """Auto-join allowed rooms; reject and leave unauthorized ones."""
         room_id = getattr(room, "room_id", "")
+        if not room_id:
+            return
+        logger.info("Matrix invite received for room %s", room_id)
+        # Defer join out of the sync callback — joining inline during sync
+        # can fail silently on some homeservers (Conduit, etc.).
+        self._spawn_task(self._handle_invite_room(room_id), name=f"mx-invite-{room_id[:8]}")
+
+    async def _join_room(self, room_id: str) -> object:
+        """Join a room, working around matrix-nio omitting the JSON body.
+
+        Conduit and some other homeservers reject POST /join with no body
+        (``M_BAD_JSON: Failed to deserialize request``).
+        """
+        from nio import Api, JoinResponse
+
+        method, path = Api.join(self._client.access_token, room_id)
+        return await self._client._send(JoinResponse, method, path, data="{}")
+
+    async def _handle_invite_room(self, room_id: str) -> None:
+        """Join or reject a room invite (runs outside sync callbacks)."""
+        from nio import JoinError
+
         if not self._allowed_rooms_set or room_id in self._allowed_rooms_set:
-            await self._client.join(room_id)
+            resp = await self._join_room(room_id)
+            if isinstance(resp, JoinError):
+                logger.error("Failed to join room %s: %s", room_id, resp.message)
+                return
             logger.info("Auto-joined room: %s", room_id)
             self._last_active_room = room_id
             await self._send_join_notification(room_id)
@@ -1165,7 +1212,10 @@ class MatrixBot:
             # Unauthorized room — join briefly to send rejection, then leave
             self._leaving_rooms.add(room_id)
             try:
-                await self._client.join(room_id)
+                resp = await self._join_room(room_id)
+                if isinstance(resp, JoinError):
+                    logger.error("Failed to join unauthorized room %s: %s", room_id, resp.message)
+                    return
                 await self._send_rich(room_id, t("matrix.room_rejected"))
                 await self._client.room_leave(room_id)
                 logger.info("Auto-left unauthorized room: %s", room_id)

@@ -12,10 +12,17 @@
 #     @bot3:example.com password3
 #     @bot4:example.com password4
 #
-#   If no file is given, defaults to ./matrix_instances.txt.
+#   When created via register_matrix_bots.py, a companion file
+#   matrix_instances_rooms.json is written and used to pre-configure
+#   matrix.allowed_rooms for each instance.
 #
 # Example:
 #   ./scripts/launch_4_kimi_matrix.sh https://matrix.example.com @you:example.com
+#
+# Optional environment variables:
+#   DUCTOR_LANGUAGE          ductor UI language (en, de, nl, fr, ru, es, pt, id). Default: en
+#   AGENT_RESPONSE_LANGUAGE  preferred Kimi reply language (free text, e.g. Cantonese / 粵語)
+#   DUCTOR_BASE_HOME         base path for per-instance homes (default: ~/.ductor-kimi-matrix)
 
 set -euo pipefail
 
@@ -33,6 +40,8 @@ INSTANCES_FILE="${3:-${SCRIPT_DIR}/matrix_instances.txt}"
 
 INTERAGENT_PORTS=(8801 8802 8803 8804)
 BASE_HOME="${DUCTOR_BASE_HOME:-${HOME}/.ductor-kimi-matrix}"
+DUCTOR_LANGUAGE="${DUCTOR_LANGUAGE:-en}"
+AGENT_RESPONSE_LANGUAGE="${AGENT_RESPONSE_LANGUAGE:-}"
 PYTHON="${PYTHON:-python3}"
 
 if command -v ductor >/dev/null 2>&1; then
@@ -108,6 +117,8 @@ template = Path("${TEMPLATE}")
 config = json.loads(template.read_text(encoding="utf-8"))
 
 config["interagent_port"] = ${INTERAGENT_PORTS[$i]}
+config["ductor_home"] = "${HOME_DIR}"
+config["language"] = "${DUCTOR_LANGUAGE}"
 
 matrix = config.setdefault("matrix", {})
 matrix["homeserver"] = "${HOMESERVER}"
@@ -117,10 +128,61 @@ matrix["access_token"] = ""
 matrix["device_id"] = ""
 matrix["allowed_users"] = ["${ALLOWED_USER}"]
 
+rooms_path = Path("${INSTANCES_FILE}").resolve().parent / (
+    Path("${INSTANCES_FILE}").resolve().stem + "_rooms.json"
+)
+if rooms_path.is_file():
+    rooms_data = json.loads(rooms_path.read_text(encoding="utf-8"))
+    room_id = rooms_data.get("rooms", {}).get("${USER_ID}", "")
+    if room_id:
+        matrix["allowed_rooms"] = [room_id]
+
 Path("${CONFIG_FILE}").write_text(json.dumps(config, indent=4), encoding="utf-8")
 PY
 
-    echo "[instance ${INSTANCE_NUM}] DUCTOR_HOME=${HOME_DIR} user=${USER_ID} port=${INTERAGENT_PORTS[$i]}"
+    if [[ -n "${AGENT_RESPONSE_LANGUAGE}" ]]; then
+        MEMORY_DIR="${HOME_DIR}/workspace/memory_system"
+        MEMORY_FILE="${MEMORY_DIR}/MAINMEMORY.md"
+        mkdir -p "${MEMORY_DIR}"
+        "${PYTHON}" - <<PY
+from pathlib import Path
+
+memory_file = Path("${MEMORY_FILE}")
+preference = "- User prefers responses in ${AGENT_RESPONSE_LANGUAGE}."
+marker = "## Decisions and Preferences"
+body = memory_file.read_text(encoding="utf-8") if memory_file.exists() else ""
+
+if preference not in body:
+    if body.strip():
+        if marker in body:
+            body = body.replace(
+                f"{marker}\\n\\n(Empty -- record important decisions and their reasoning here.)",
+                f"{marker}\\n\\n{preference}",
+            )
+            if preference not in body:
+                body = body.rstrip() + f"\\n\\n{marker}\\n\\n{preference}\\n"
+        else:
+            body = body.rstrip() + f"\\n\\n{marker}\\n\\n{preference}\\n"
+    else:
+        body = f"""# Main Memory
+
+## About the User
+
+(Empty -- will be populated as you learn about your human.)
+
+## Learned Facts
+
+(Empty -- will be populated as the agent learns.)
+
+## Decisions and Preferences
+
+{preference}
+"""
+    memory_file.write_text(body, encoding="utf-8")
+PY
+    fi
+
+    echo "[instance ${INSTANCE_NUM}] DUCTOR_HOME=${HOME_DIR} user=${USER_ID} port=${INTERAGENT_PORTS[$i]} language=${DUCTOR_LANGUAGE}"
 
     DUCTOR_HOME="${HOME_DIR}" "${DUCTOR_CMD[@]}" >"${LOG_DIR}/launcher.log" 2>&1 &
     PIDS+=("$!")
