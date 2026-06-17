@@ -629,29 +629,31 @@ class ModelRegistry:
         full model IDs (``claude-opus-4-7``), so any ``claude-`` prefix
         routes to Claude.
         """
+        # "auto" is ambiguous: it is Cursor's default model and also a Gemini
+        # CLI alias. Without runtime context, prefer Cursor's default.
         if model_id in CLAUDE_MODELS or model_id.startswith("claude-"):
-            return "claude"
-        if (
+            provider = "claude"
+        elif model_id == DEFAULT_CURSOR_MODEL:
+            provider = "cursor"
+        elif (
             model_id in _GEMINI_ALIASES
             or model_id in _runtime_gemini[0]
             or model_id.startswith(("gemini-", "auto-gemini-"))
         ):
-            return "gemini"
-        if (
+            provider = "gemini"
+        elif (
             model_id in ANTIGRAVITY_MODELS
             or model_id in _runtime_antigravity[0]
             or model_id.startswith("antigravity-")
         ):
-            return "antigravity"
-        if model_id in _runtime_kimi[0] or model_id.startswith("kimi-"):
-            return "kimi"
-        if (
-            model_id == DEFAULT_CURSOR_MODEL
-            or model_id in _runtime_cursor[0]
-            or model_id.startswith("composer-")
-        ):
-            return "cursor"
-        return "codex"
+            provider = "antigravity"
+        elif model_id in _runtime_kimi[0] or model_id.startswith("kimi-"):
+            provider = "kimi"
+        elif model_id in _runtime_cursor[0] or model_id.startswith("composer-"):
+            provider = "cursor"
+        else:
+            provider = "codex"
+        return provider
 
 
 def get_gemini_models() -> frozenset[str]:

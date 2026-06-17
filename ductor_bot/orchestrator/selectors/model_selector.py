@@ -317,7 +317,11 @@ async def switch_model(  # noqa: C901, PLR0912, PLR0915
     if same_model and reasoning_effort is None:
         return t("model.already_running", model=model_id)
 
-    old_provider = orch.models.provider_for(old)
+    old_provider = (
+        active_session.provider
+        if active_session is not None
+        else orch._config.provider or orch.models.provider_for(old)
+    )
     provider_changed = old_provider != new_provider
 
     validation_error = _validate_codex_reasoning_effort(orch, model_id, reasoning_effort)

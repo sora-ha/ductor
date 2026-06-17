@@ -453,6 +453,17 @@ async def test_switch_model_auto_respects_configured_provider(orch: Orchestrator
     assert orch._config.model == "kimi-code/kimi-for-coding"
 
 
+async def test_switch_from_auto_uses_configured_provider(orch: Orchestrator) -> None:
+    """Switching away from 'auto' must report the configured provider, not Gemini."""
+    object.__setattr__(orch._process_registry, "kill_all", AsyncMock(return_value=0))
+    orch._config.provider = "cursor"
+    orch._config.model = "auto"
+    result = await switch_model(orch, SessionKey(chat_id=1), "kimi")
+    assert "Provider: cursor -> kimi" in result
+    assert orch._config.provider == "kimi"
+    assert orch._config.model == "kimi-code/kimi-for-coding"
+
+
 async def test_switch_model_shows_resume_hint_same_provider(orch: Orchestrator) -> None:
     session, _ = await orch._sessions.resolve_session(
         SessionKey(chat_id=1), provider="claude", model="opus"
