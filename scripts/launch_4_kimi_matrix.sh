@@ -44,20 +44,9 @@ else
     exit 1
 fi
 
-TEMPLATE="${REPO_ROOT}/config.example.json"
+TEMPLATE="${REPO_ROOT}/config.example.multi-kimi.json"
 if [[ ! -f "${TEMPLATE}" ]]; then
-    TEMPLATE=$("${PYTHON}" - <<'PY'
-import importlib.util
-import pathlib
-spec = importlib.util.find_spec("ductor_bot")
-if spec and spec.origin:
-    print(pathlib.Path(spec.origin).parent / "_config_example.json")
-PY
-    )
-fi
-
-if [[ ! -f "${TEMPLATE}" ]]; then
-    echo "Cannot find config.example.json or packaged _config_example.json" >&2
+    echo "Cannot find config.example.multi-kimi.json" >&2
     exit 1
 fi
 
@@ -118,14 +107,7 @@ from pathlib import Path
 template = Path("${TEMPLATE}")
 config = json.loads(template.read_text(encoding="utf-8"))
 
-config["provider"] = "kimi"
-config["model"] = "kimi-code/kimi-for-coding"
-config["transport"] = "matrix"
-config["transports"] = ["matrix"]
 config["interagent_port"] = ${INTERAGENT_PORTS[$i]}
-config["docker"]["enabled"] = False
-config["webhooks"]["enabled"] = False
-config["api"]["enabled"] = False
 
 matrix = config.setdefault("matrix", {})
 matrix["homeserver"] = "${HOMESERVER}"
@@ -134,8 +116,6 @@ matrix["password"] = "${PASSWORD}"
 matrix["access_token"] = ""
 matrix["device_id"] = ""
 matrix["allowed_users"] = ["${ALLOWED_USER}"]
-matrix["allowed_rooms"] = []
-matrix["store_path"] = "matrix_store"
 
 Path("${CONFIG_FILE}").write_text(json.dumps(config, indent=4), encoding="utf-8")
 PY

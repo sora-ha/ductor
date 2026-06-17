@@ -1,0 +1,183 @@
+{
+  "_comment": "Full example config showing all features. Copy to ~/.ductor/config/config.json and adjust.",
+  "log_level": "INFO",
+  "provider": "kimi",
+  "model": "kimi-code/kimi-for-coding",
+  "language": "en",
+  "ductor_home": "~/.ductor",
+  "user_timezone": "Asia/Singapore",
+  "update_check": true,
+  "idle_timeout_minutes": 1440,
+  "session_age_warning_hours": 12,
+  "daily_reset_hour": 4,
+  "daily_reset_enabled": false,
+  "max_budget_usd": null,
+  "max_turns": null,
+  "max_session_messages": null,
+  "permission_mode": "bypassPermissions",
+  "cli_timeout": 1800.0,
+  "reasoning_effort": "medium",
+  "file_access": "all",
+  "gemini_api_key": "null",
+  "transport": "matrix",
+  "transports": [
+    "matrix"
+  ],
+  "telegram_token": "",
+  "allowed_user_ids": [],
+  "allowed_group_ids": [],
+  "group_mention_only": false,
+  "matrix": {
+    "homeserver": "http://matrix.local:6167",
+    "user_id": "@user1:matrix.local",
+    "password": "password1",
+    "access_token": "",
+    "device_id": "",
+    "allowed_rooms": [],
+    "allowed_users": [
+      "@wingkit:matrix.local"
+    ],
+    "store_path": "matrix_store"
+  },
+  "streaming": {
+    "enabled": true,
+    "min_chars": 200,
+    "max_chars": 4000,
+    "idle_ms": 800,
+    "edit_interval_seconds": 2.0,
+    "max_edit_failures": 3,
+    "append_mode": false,
+    "sentence_break": true,
+    "show_reasoning_stream": false,
+    "show_tool_progress": true,
+    "show_thinking_indicator": true
+  },
+  "docker": {
+    "enabled": false,
+    "image_name": "ductor-sandbox",
+    "container_name": "ductor-sandbox",
+    "auto_build": true,
+    "mount_host_cache": false,
+    "mounts": [],
+    "published_ports": [],
+    "extras": []
+  },
+  "heartbeat": {
+    "enabled": false,
+    "interval_minutes": 30,
+    "cooldown_minutes": 5,
+    "quiet_start": 21,
+    "quiet_end": 8,
+    "prompt": "You are running as a background heartbeat check. Review the current workspace context:\n- Read memory_system/MAINMEMORY.md for user interests and personality\n- Check cron_tasks/ for active projects\n- Think about what might be useful, interesting, or fun for the user\n\nIf you have a creative idea, suggestion, interesting fact, or something the user might enjoy:\nReply with your message directly.\n\nIf nothing needs attention right now:\nReply exactly: HEARTBEAT_OK",
+    "ack_token": "HEARTBEAT_OK",
+    "group_targets": [
+      {
+        "enabled": false,
+        "chat_id": null,
+        "topic_id": null,
+        "prompt": "Replace chat_id with your group ID to enable this target.",
+        "ack_token": null,
+        "interval_minutes": null,
+        "quiet_start": null,
+        "quiet_end": null
+      }
+    ]
+  },
+  "cleanup": {
+    "enabled": true,
+    "media_files_days": 30,
+    "output_to_user_days": 30,
+    "api_files_days": 30,
+    "check_hour": 3
+  },
+  "webhooks": {
+    "enabled": false,
+    "host": "127.0.0.1",
+    "port": 8742,
+    "token": "",
+    "max_body_bytes": 262144,
+    "rate_limit_per_minute": 30
+  },
+  "api": {
+    "enabled": false,
+    "host": "0.0.0.0",
+    "port": 8741,
+    "token": "",
+    "chat_id": 0,
+    "allow_public": false
+  },
+  "cli_parameters": {
+    "claude": [],
+    "codex": [],
+    "gemini": [],
+    "antigravity": [],
+    "kimi": [],
+    "cursor": [],
+    "reasonix": []
+  },
+  "image": {
+    "max_dimension": 2000,
+    "output_format": "webp",
+    "quality": 85
+  },
+  "scene": {
+    "seen_reaction": false,
+    "status_reaction": true,
+    "technical_footer": false
+  },
+  "notifications": {
+    "startup_targets": [],
+    "upgrade_targets": []
+  },
+  "transcription": {
+    "audio_command": "",
+    "video_command": ""
+  },
+  "timeouts": {
+    "normal": 1800.0,
+    "background": 1800.0,
+    "subagent": 3600.0,
+    "warning_intervals": [
+      60.0,
+      10.0
+    ],
+    "extend_on_activity": true,
+    "activity_extension": 120.0,
+    "max_extensions": 3
+  },
+  "tasks": {
+    "enabled": true,
+    "max_parallel": 5,
+    "timeout_seconds": 3600.0
+  },
+  "skills": {
+    "sync_enabled": true,
+    "sync": {
+      "claude": true,
+      "codex": true,
+      "gemini": true,
+      "kimi": true,
+      "cursor": true,
+      "reasonix": true
+    }
+  },
+  "interagent_port": 8799,
+  "memory_flush": {
+    "enabled": true,
+    "flush_prompt": "## PRE-COMPACTION MEMORY FLUSH\nThe conversation context is about to be compacted. Before that happens: review the recent conversation and APPEND any durable facts, decisions, preferences, or learnings to memory_system/MAINMEMORY.md that are not already captured there. Do NOT overwrite existing entries. If there is nothing new worth saving, reply exactly: FLUSH_NOOP",
+    "dedup_seconds": 300
+  },
+  "memory_reflection": {
+    "enabled": false,
+    "every_n_messages": 10,
+    "prompt": "## MEMORY REFLECTION\nReview the last several messages in this conversation.\nCheck: were there any new decisions, corrections, error solutions, user preferences, or important facts that you did NOT yet write to memory?\nIf yes -- update memory_system/MAINMEMORY.md silently.\nIf everything is already recorded -- do nothing."
+  },
+  "memory_compaction": {
+    "enabled": true,
+    "trigger_lines": 70,
+    "target_lines": 40,
+    "preserve_recency_days": 14,
+    "prompt": "## MEMORY COMPACTION\nmemory_system/MAINMEMORY.md has grown large. Rewrite it as follows:\n1. Preserve entries from the last {preserve_days} days verbatim.\n2. For older entries, cluster by topic and replace each cluster with ONE dense entry that preserves all key facts in fewer lines.\n3. Target size: roughly {target_lines} lines total.\n4. Do NOT delete facts -- only compress their expression.\nIf MAINMEMORY.md is already at or below {target_lines} lines, reply exactly: COMPACT_NOOP"
+  },
+  "allowed_channel_ids": []
+}
