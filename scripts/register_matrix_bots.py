@@ -59,7 +59,7 @@ async def _register(  # noqa: C901, PLR0912
 ) -> str:
     """Register a Matrix user and return the full MXID."""
     register_url = urljoin(homeserver.rstrip("/") + "/", "_matrix/client/v3/register")
-    body: dict = {"username": username, "password": password, "type": "m.login.password"}
+    body: dict = {"username": username, "password": password}
 
     # Some servers want the initial request without auth; others accept the
     # whole flow up front.  We iterate through authentication stages.
