@@ -28,14 +28,14 @@
   "allowed_group_ids": [],
   "group_mention_only": false,
   "matrix": {
-    "homeserver": "http://matrix.local:6167",
-    "user_id": "@user1:matrix.local",
+    "homeserver": "http://matrix.test:6167",
+    "user_id": "@user1:matrix.test",
     "password": "password1",
     "access_token": "",
     "device_id": "",
     "allowed_rooms": [],
     "allowed_users": [
-      "@wingkit:matrix.local"
+      "@wingkit:matrix.test"
     ],
     "store_path": "matrix_store"
   },

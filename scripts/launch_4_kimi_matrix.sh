@@ -23,6 +23,14 @@
 #   DUCTOR_LANGUAGE          ductor UI language (en, de, nl, fr, ru, es, pt, id). Default: en
 #   AGENT_RESPONSE_LANGUAGE  preferred Kimi reply language (free text, e.g. Cantonese / 粵語)
 #   DUCTOR_BASE_HOME         base path for per-instance homes (default: ~/.ductor-kimi-matrix)
+#   DUCTOR_SCREEN_PREFIX     GNU screen session name prefix (default: ductor-kimi-matrix)
+#
+# Each instance runs in a detached screen session. Attach with:
+#   screen -r ductor-kimi-matrix-1
+# List sessions:
+#   screen -ls | grep ductor-kimi-matrix
+# Stop all:
+#   for i in 1 2 3 4; do screen -S ductor-kimi-matrix-$i -X quit; done
 
 set -euo pipefail
 
@@ -40,9 +48,24 @@ INSTANCES_FILE="${3:-${SCRIPT_DIR}/matrix_instances.txt}"
 
 INTERAGENT_PORTS=(8801 8802 8803 8804)
 BASE_HOME="${DUCTOR_BASE_HOME:-${HOME}/.ductor-kimi-matrix}"
+SCREEN_PREFIX="${DUCTOR_SCREEN_PREFIX:-ductor-kimi-matrix}"
 DUCTOR_LANGUAGE="${DUCTOR_LANGUAGE:-en}"
 AGENT_RESPONSE_LANGUAGE="${AGENT_RESPONSE_LANGUAGE:-}"
 PYTHON="${PYTHON:-python3}"
+
+if ! command -v screen >/dev/null 2>&1; then
+    echo "GNU screen is required. Install it (e.g. brew install screen) and retry." >&2
+    exit 1
+fi
+
+quote_cmd() {
+    local quoted=()
+    local part
+    for part in "$@"; do
+        quoted+=("$(printf '%q' "${part}")")
+    done
+    (IFS=' '; echo "${quoted[*]}")
+}
 
 if command -v ductor >/dev/null 2>&1; then
     DUCTOR_CMD=(ductor)
@@ -72,8 +95,11 @@ EOF
     exit 1
 fi
 
-# Read non-empty lines from the instances file.
-mapfile -t LINES < <(grep -v '^\s*$' "${INSTANCES_FILE}")
+# Read non-empty lines from the instances file (bash 3.x has no mapfile).
+LINES=()
+while IFS= read -r line; do
+    LINES+=("${line}")
+done < <(grep -v '^\s*$' "${INSTANCES_FILE}")
 if [[ ${#LINES[@]} -lt 4 ]]; then
     echo "Instances file must contain at least 4 non-empty lines (got ${#LINES[@]})." >&2
     exit 1
@@ -87,7 +113,8 @@ fi
 
 mkdir -p "${BASE_HOME}"
 
-PIDS=()
+DUCTOR_EXEC="$(quote_cmd "${DUCTOR_CMD[@]}")"
+SESSIONS=()
 
 for i in {0..3}; do
     INSTANCE_NUM=$((i + 1))
@@ -108,7 +135,10 @@ for i in {0..3}; do
         exit 1
     fi
 
-    # Generate per-instance config.
+    # Generate per-instance config (skip when matrix-crew wizard already wrote one).
+    if [[ -f "${CONFIG_FILE}" && "${DUCTOR_FORCE_CONFIG_GEN:-}" != "1" ]]; then
+        echo "[instance ${INSTANCE_NUM}] reusing existing config at ${CONFIG_FILE}"
+    else
     "${PYTHON}" - <<PY
 import json
 from pathlib import Path
@@ -139,6 +169,7 @@ if rooms_path.is_file():
 
 Path("${CONFIG_FILE}").write_text(json.dumps(config, indent=4), encoding="utf-8")
 PY
+    fi
 
     if [[ -n "${AGENT_RESPONSE_LANGUAGE}" ]]; then
         MEMORY_DIR="${HOME_DIR}/workspace/memory_system"
@@ -182,23 +213,31 @@ if preference not in body:
 PY
     fi
 
+    SESSION_NAME="${SCREEN_PREFIX}-${INSTANCE_NUM}"
+    SESSIONS+=("${SESSION_NAME}")
+
     echo "[instance ${INSTANCE_NUM}] DUCTOR_HOME=${HOME_DIR} user=${USER_ID} port=${INTERAGENT_PORTS[$i]} language=${DUCTOR_LANGUAGE}"
 
-    DUCTOR_HOME="${HOME_DIR}" "${DUCTOR_CMD[@]}" >"${LOG_DIR}/launcher.log" 2>&1 &
-    PIDS+=("$!")
-    echo "[instance ${INSTANCE_NUM}] PID=$!"
+    # Replace any existing session with the same name.
+    screen -S "${SESSION_NAME}" -X quit >/dev/null 2>&1 || true
+
+    screen -dmS "${SESSION_NAME}" bash -c "
+        export DUCTOR_HOME=$(printf '%q' "${HOME_DIR}")
+        cd $(printf '%q' "${REPO_ROOT}")
+        exec ${DUCTOR_EXEC} >> $(printf '%q' "${LOG_DIR}/launcher.log") 2>&1
+    "
+
+    echo "[instance ${INSTANCE_NUM}] screen session=${SESSION_NAME}"
 done
 
-echo "All 4 Matrix/Kimi ductor instances launched.  Press Ctrl-C to stop them."
-
-cleanup() {
-    echo "Stopping instances..."
-    for pid in "${PIDS[@]}"; do
-        kill "${pid}" 2>/dev/null || true
-    done
-    wait 2>/dev/null || true
-    echo "Stopped."
-}
-trap cleanup INT TERM
-
-wait
+echo
+echo "All 4 Matrix/Kimi ductor instances launched in detached screen sessions."
+echo
+echo "Attach to a session:"
+for session in "${SESSIONS[@]}"; do
+    echo "  screen -r ${session}"
+done
+echo
+echo "List sessions:  screen -ls | grep ${SCREEN_PREFIX}"
+echo "Stop all:"
+echo "  for i in 1 2 3 4; do screen -S ${SCREEN_PREFIX}-\$i -X quit; done"

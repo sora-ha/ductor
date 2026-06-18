@@ -11,10 +11,10 @@ Usage:
     cd ductor
     uv sync
     uv run python scripts/register_matrix_bots.py \
-        --homeserver http://matrix.local:6167 \
+        --homeserver http://matrix.test:6167 \
         --base-username ductor-kimi \
         --password VerySecret123 \
-        --allowed-user @you:matrix.local \
+        --allowed-user @you:matrix.test \
         --owner-password your-owner-password \
         --registration-token matrix-crew-dev \
         --count 4 \
@@ -23,7 +23,7 @@ Usage:
 The registration token can also be set via CONDUIT_REGISTRATION_TOKEN env var.
 
 Then launch the bots:
-    ./scripts/launch_4_kimi_matrix.sh http://matrix.local:6167 @you:matrix.local scripts/matrix_instances.txt
+    ./scripts/launch_4_kimi_matrix.sh http://matrix.test:6167 @you:matrix.test scripts/matrix_instances.txt
 """
 
 from __future__ import annotations

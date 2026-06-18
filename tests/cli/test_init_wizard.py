@@ -93,10 +93,10 @@ def test_write_config_sets_transports_for_matrix(tmp_path: Path) -> None:
         _write_config(
             _WizardConfig(
                 transport="matrix",
-                matrix_homeserver="http://matrix.local:6167",
-                matrix_user_id="@user1:matrix.local",
+                matrix_homeserver="http://matrix.test:6167",
+                matrix_user_id="@user1:matrix.test",
                 matrix_password="password1",
-                matrix_allowed_users=["@wingkit:matrix.local"],
+                matrix_allowed_users=["@wingkit:matrix.test"],
                 user_timezone="UTC",
                 docker_enabled=False,
             )
@@ -105,7 +105,7 @@ def test_write_config_sets_transports_for_matrix(tmp_path: Path) -> None:
     data = json.loads(paths.config_path.read_text(encoding="utf-8"))
     assert data["transport"] == "matrix"
     assert data["transports"] == ["matrix"]
-    assert data["matrix"]["homeserver"] == "http://matrix.local:6167"
+    assert data["matrix"]["homeserver"] == "http://matrix.test:6167"
 
 
 def test_run_onboarding_returns_false_when_service_install_fails(tmp_path: Path) -> None:

@@ -2,7 +2,7 @@
 # Show Matrix join/invite state for each kimi-matrix ductor instance.
 set -euo pipefail
 
-HOMESERVER="${1:-http://matrix.local:6167}"
+HOMESERVER="${1:-http://matrix.test:6167}"
 BASE_HOME="${DUCTOR_BASE_HOME:-${HOME}/.ductor-kimi-matrix}"
 
 for i in 1 2 3 4; do
