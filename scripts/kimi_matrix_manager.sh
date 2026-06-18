@@ -37,6 +37,7 @@ PYTHON="${PYTHON:-python3}"
 if [[ -x "${REPO_ROOT}/.venv/bin/python" ]]; then
     PYTHON="${REPO_ROOT}/.venv/bin/python"
 fi
+export PYTHON
 export PATH="${REPO_ROOT}/.venv/bin:${PATH}"
 
 session_name() {

@@ -53,6 +53,11 @@ DUCTOR_LANGUAGE="${DUCTOR_LANGUAGE:-en}"
 AGENT_RESPONSE_LANGUAGE="${AGENT_RESPONSE_LANGUAGE:-}"
 PYTHON="${PYTHON:-python3}"
 
+if [[ -x "${REPO_ROOT}/.venv/bin/python" ]]; then
+    PYTHON="${REPO_ROOT}/.venv/bin/python"
+fi
+export PYTHON
+
 if ! command -v screen >/dev/null 2>&1; then
     echo "GNU screen is required. Install it (e.g. brew install screen) and retry." >&2
     exit 1
@@ -222,6 +227,7 @@ PY
     screen -S "${SESSION_NAME}" -X quit >/dev/null 2>&1 || true
 
     screen -dmS "${SESSION_NAME}" bash -c "
+        export PATH=$(printf '%q' "${REPO_ROOT}/.venv/bin"):\$PATH
         export DUCTOR_HOME=$(printf '%q' "${HOME_DIR}")
         cd $(printf '%q' "${REPO_ROOT}")
         exec ${DUCTOR_EXEC} >> $(printf '%q' "${LOG_DIR}/launcher.log") 2>&1

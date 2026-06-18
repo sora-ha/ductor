@@ -86,7 +86,7 @@ class KimiCLI(BaseCLI):
         """Build Kimi CLI command and effective session id."""
         cfg = self._config
         effective_session_id = resume_session
-        cmd = [self._cli, "--output-format", "stream-json"]
+        cmd = [self._cli, "--output-format", "stream-json", "--print"]
         if cfg.model:
             cmd += ["--model", cfg.model]
         if effective_session_id:
